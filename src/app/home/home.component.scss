@@ -1,3 +1,32 @@
-:host {
-  
+.container {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.header-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.content-container {
+  flex: 1;
+}
+
+.title {
+  flex: 1;
+}
+
+.vir-icon {
+  margin-left: 10px;
+  margin-right: 20px;
+}
+
+.dark-icon {
+  position: relative;
+  top: 2px;
+  margin-left: 5px;
 }

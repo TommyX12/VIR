@@ -1,6 +1,10 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    "strictNullChecks": true,
+    "strictPropertyInitialization": true,
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true,
     "outDir": "../out-tsc/app",
     "module": "es2015",
     "baseUrl": "",
@@ -11,7 +15,8 @@
     "polyfill.ts"
   ],
   "exclude": [
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "**/*.service.ts"
   ],
   "angularCompilerOptions": {
     "fullTemplateTypeCheck": true,

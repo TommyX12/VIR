@@ -1,7 +1,15 @@
-<div class="container">
-  <h1 class="title">
-    {{ 'PAGES.HOME.TITLE' | translate }}
-  </h1>
-
-  <a routerLink="/detail">{{ 'PAGES.HOME.GO_TO_DETAIL' | translate }}</a>
+<div class="container mat-app-background">
+  <mat-toolbar>
+    <div class="header-content">
+      <mat-icon class="vir-icon">camera</mat-icon>
+      <span class="title">VIR</span>
+      <mat-slide-toggle [(ngModel)]="enableDarkMode">
+        <mat-icon class="dark-icon">brightness_4</mat-icon>
+      </mat-slide-toggle>
+    </div>
+  </mat-toolbar>
+  <mat-sidenav-container class="content-container">
+    <mat-sidenav mode="side" opened>Sidenav placeholder content</mat-sidenav>
+    <mat-sidenav-content></mat-sidenav-content>
+  </mat-sidenav-container>
 </div>
