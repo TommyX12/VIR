@@ -4,3 +4,7 @@ export function removeValue<T>(array: T[], value: T) {
     array.splice(index, 1)
   }
 }
+
+export function random(min: number, max: number) {
+  return min + Math.random() * (max - min)
+}

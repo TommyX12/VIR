@@ -16,8 +16,29 @@
   flex: 1;
 }
 
+.side-bar {
+  width: 250px;
+}
+
+.tab-group {
+  height: 100%;
+}
+
+// Make tab fill height
+.tab-group ::ng-deep .mat-tab-body-wrapper {
+  flex-grow: 1;
+}
+
+.tab-group ::ng-deep .mat-tab-body.mat-tab-body-active {
+  height: 100%;
+}
+
 .title {
   flex: 1;
+}
+
+.small-space {
+  width: 10px;
 }
 
 .vir-icon {
@@ -25,8 +46,20 @@
   margin-right: 20px;
 }
 
-.dark-icon {
+.dark-mode-icon {
   position: relative;
   top: 2px;
   margin-left: 5px;
+}
+
+.tab-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-label-icon {
+  margin-right: 5px;
+  position: relative;
+  top: 1px;
 }

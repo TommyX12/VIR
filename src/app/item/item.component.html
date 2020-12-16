@@ -1,0 +1,21 @@
+<div class="item-content"
+     [style.background-color]="node.color.fade(0.8).string()"
+     [class.container-faded]="done">
+  <div class="color-block" [style.background-color]="getChipColor()"></div>
+  <ng-content select="[prefix]"></ng-content>
+  <button mat-icon-button (click)="!node.isDragging && toggleDone()">
+    <mat-icon class="checkbox" [class.checked]="done">
+      {{done ? 'check_circle' : 'radio_button_unchecked'}}
+    </mat-icon>
+  </button>
+  <div class="item-body" (click)="!node.isDragging && onBodyClicked()"
+       [class.is-indirect]="node.isIndirect && !done"
+       [class.faded]="done">
+    <span class="item-name">
+      {{node.name}}
+    </span>
+    <span>{{node.cost}}</span>
+    <app-session-chip></app-session-chip>
+  </div>
+  <ng-content select="[suffix]"></ng-content>
+</div>

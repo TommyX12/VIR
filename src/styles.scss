@@ -6,7 +6,7 @@
 // Add your desired themes to this map.
 $themes-map: (
   main: (
-    primary-base: $mat-indigo,
+    primary-base: $mat-green,
     accent-base: $mat-light-blue,
   ),
 );
@@ -20,7 +20,8 @@ html, body {
   margin: 0;
   padding: 0;
 
+  user-select: none;
+
   height: 100%;
   font-family: Arial, Helvetica, sans-serif;
 }
-

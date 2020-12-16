@@ -1,6 +1,7 @@
 import {Component, HostBinding, OnInit} from '@angular/core'
 import {Router} from '@angular/router'
 import {OverlayContainer} from '@angular/cdk/overlay'
+import {DataStore} from '../data/data-store'
 
 const THEME_DARKNESS_SUFFIX = `-dark`
 const DEFAULT_THEME_NAME = 'main'
@@ -20,7 +21,8 @@ export class HomeComponent implements OnInit {
   private _enableDarkMode = DEFAULT_DARKNESS
 
   constructor(private router: Router,
-              private overlayContainer: OverlayContainer) {
+              private overlayContainer: OverlayContainer,
+              public readonly dataStore: DataStore) {
     this.setActiveTheme(this.activeTheme, this.enableDarkMode)
   }
 

@@ -1,0 +1,87 @@
+.item-content {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #88888833;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.item-content:hover {
+  outline: #4488ff solid 2px;
+  outline-offset: -2px;
+}
+
+.color-block {
+  width: 5px;
+  height: 100%;
+}
+
+.item-body {
+  flex: 1;
+  margin-right: 10px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.item-name {
+  flex: 1;
+}
+
+//.checkbox {
+//  box-sizing: border-box;
+//  border: 3px solid #44aeff88;
+//  border-radius: 100%;
+//  width: 20px;
+//  height: 20px;
+//  margin-right: 10px;
+//  cursor: pointer;
+//}
+//
+//.checkbox:hover {
+//  border-color: #44aeff;
+//}
+//
+//.checked {
+//  border-width: 0;
+//  background-color: #88888888;
+//}
+//
+//.checked:hover {
+//  background-color: #888888;
+//}
+
+.checkbox {
+  color: #309aea;
+  position: relative;
+  bottom: 1px;
+  right: 2px;
+}
+
+.checkbox:hover {
+  color: #55bbea;
+}
+
+.checked {
+  color: #88888899;
+}
+
+.checked:hover {
+  color: #888888;
+}
+
+.faded {
+  opacity: 0.75;
+}
+
+.is-indirect {
+  opacity: 0.5;
+}
+
+.container-faded {
+  opacity: 0.55;
+}

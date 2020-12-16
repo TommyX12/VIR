@@ -3,13 +3,40 @@
     <div class="header-content">
       <mat-icon class="vir-icon">camera</mat-icon>
       <span class="title">VIR</span>
+      <button mat-icon-button (click)="dataStore.undo()"
+              matTooltip="Undo"
+              [disabled]="!dataStore.canUndo()">
+        <mat-icon>undo</mat-icon>
+      </button>
+      <button mat-icon-button (click)="dataStore.redo()"
+              matTooltip="Redo"
+              [disabled]="!dataStore.canRedo()">
+        <mat-icon>redo</mat-icon>
+      </button>
+      <div class="small-space"></div>
       <mat-slide-toggle [(ngModel)]="enableDarkMode">
-        <mat-icon class="dark-icon">brightness_4</mat-icon>
+        <mat-icon class="dark-mode-icon">brightness_4</mat-icon>
       </mat-slide-toggle>
     </div>
   </mat-toolbar>
   <mat-sidenav-container class="content-container">
-    <mat-sidenav mode="side" opened>Sidenav placeholder content</mat-sidenav>
-    <mat-sidenav-content></mat-sidenav-content>
+    <mat-sidenav mode="side" opened class="side-bar">
+      Sidenav placeholder content and stuff
+    </mat-sidenav>
+    <mat-sidenav-content>
+      <mat-tab-group color="accent" animationDuration="250ms" class="tab-group">
+        <mat-tab label="test">test</mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="tab-label">
+              <mat-icon class="tab-label-icon">list</mat-icon>
+              Items
+            </span>
+          </ng-template>
+          <app-items>
+          </app-items>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-sidenav-content>
   </mat-sidenav-container>
 </div>

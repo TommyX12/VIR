@@ -1,7 +1,11 @@
 import Color from 'color'
+import convert from 'color-convert'
 import produce, {Draft, immerable} from 'immer'
-import {removeValue} from '../util/util'
+import {random, removeValue} from '../util/util'
 import {DayID, ItemID, SessionData} from './common'
+import {Injectable} from '@angular/core'
+import {BehaviorSubject} from 'rxjs'
+import Fuse from 'fuse.js'
 
 export enum ItemStatus {
   ACTIVE,
@@ -160,13 +164,119 @@ export interface DataStoreState {
   nextID: number
 }
 
+type DataStoreAutoCompleterData = {
+  key: string,
+  id: ItemID
+}
+
+/**
+ * If numCandidates is 0, then no limit will be imposed on the result.
+ */
+export class DataStoreAutoCompleter {
+  private data: DataStoreAutoCompleterData[] = []
+
+  private fuse: Fuse<DataStoreAutoCompleterData>
+
+  private _keyToID = new Map<string, ItemID>()
+  private _idToKey = new Map<ItemID, string>()
+
+  constructor(
+    dataStore: DataStore,
+    public numCandidates: number = 10,
+  ) {
+    // TODO: optimize: use DFS to reduce the amount of parent-tracing
+    const keyCount = new Map<string, number>()
+    dataStore.state.items.forEach((item) => {
+      const key = DataStoreAutoCompleter.getKey(dataStore, item)
+      this.data.push({
+        key: key,
+        id: item.id,
+      })
+
+      if (keyCount.has(key)) {
+        keyCount.set(key, keyCount.get(key)! + 1)
+      } else {
+        keyCount.set(key, 1)
+      }
+    })
+
+    const numItems = this.data.length
+    for (let i = 0; i < numItems; i++) {
+      const entry = this.data[i]
+      if (keyCount.get(entry.key)! > 1) {
+        entry.key += ` (#${entry.id})`
+      }
+      this._keyToID.set(entry.key, entry.id)
+      this._idToKey.set(entry.id, entry.key)
+    }
+
+    this.fuse = new Fuse(this.data, {
+      keys: ['key'],
+      includeScore: true,
+      ignoreLocation: true,
+      sortFn: (a, b) => {
+        if (a.score != b.score) {
+          return a.score - b.score
+        }
+        // @ts-ignore
+        return a.item[0].v.localeCompare(b.item[0].v)
+      },
+    })
+  }
+
+  private static getKey(dataStore: DataStore, item: Item) {
+    if (item.status === ItemStatus.COMPLETED) {
+      return '[DONE] ' + dataStore.getQualifiedString(item)
+    }
+    return dataStore.getQualifiedString(item)
+  }
+
+  queryKeys(pattern: string) {
+    let result = this.fuse.search(pattern)
+    if (this.numCandidates > 0) {
+      result = result.slice(0, this.numCandidates)
+    }
+    return result.map((entry) => {
+      return entry.item.key
+    })
+  }
+
+  queryIDs(pattern: string) {
+    let result = this.fuse.search(pattern)
+    if (this.numCandidates > 0) {
+      result = result.slice(0, this.numCandidates)
+    }
+    return result.map((entry) => {
+      return entry.item.id
+    })
+  }
+
+  keyToID(key: string) {
+    return this._keyToID.get(key)
+  }
+
+  idToKey(itemID: ItemID) {
+    return this._idToKey.get(itemID)
+  }
+}
+
+@Injectable()
 export class DataStore {
   private _state: DataStoreState = {
     items: new Map<ItemID, Item>(),
-    nextID: 0,
+    nextID: 1,
     rootItemIDs: [],
     timelineData: new DayMap<DayData>(new DayData()),
   }
+
+  private undoHistory: DataStoreState[] = []
+  private redoHistory: DataStoreState[] = []
+
+  private defaultColor = Color('#000000')
+
+  private onChangeSubject = new BehaviorSubject<DataStore>(this)
+
+  onChange = this.onChangeSubject.asObservable()
 
   private addItemReducer = produce(
     (draft: Draft<DataStoreState>, itemDraft: ItemDraft) => {
@@ -232,6 +342,7 @@ export class DataStore {
       if (item === undefined) {
         throw new Error(`Item with ID ${itemID} does not exist`)
       }
+      this._removeAllChildrenOf(draft, item)
       if (item.parentID === undefined) {
         removeValue(draft.rootItemIDs, itemID)
       } else {
@@ -244,23 +355,228 @@ export class DataStore {
       draft.items.delete(itemID)
     })
 
+  /**
+   * NOTE: This method will always return a new array.
+   */
+  getChildren = (item: Item) => {
+    const children: Item[] = []
+    const numChildren = item.childrenIDs.length
+    for (let i = 0; i < numChildren; ++i) {
+      const childID = item.childrenIDs[i]
+      const child = this.getItem(childID)
+      if (child === undefined) {
+        throw new Error(`Child ${childID} not found`)
+      }
+      children.push(child)
+    }
+    return children
+  }
+
+  private _freezeNotifyAndUndo = false
+
+  maxUndoHistory = 50
+
+  constructor() {
+    // TODO remove this
+    this.batchEdit(() => {
+      let draft = new ItemDraft(-1, 'Hello')
+      draft.color =
+        Color.rgb(Math.random() * 255, Math.random() * 255, Math.random() * 255)
+      this.addItem(draft)
+      draft = new ItemDraft(-1, 'World')
+      draft.color =
+        Color.rgb(Math.random() * 255, Math.random() * 255, Math.random() * 255)
+      this.addItem(draft)
+      draft = new ItemDraft(-1, 'Okay')
+      draft.color =
+        Color.rgb(Math.random() * 255, Math.random() * 255, Math.random() * 255)
+      this.addItem(draft)
+      draft = new ItemDraft(-1, 'QWER')
+      draft.color =
+        Color.rgb(Math.random() * 255, Math.random() * 255, Math.random() * 255)
+      draft.parentID = 2
+      this.addItem(draft)
+      draft = new ItemDraft(-1, 'POIUPOIQWUE')
+      draft.color =
+        Color.rgb(Math.random() * 255, Math.random() * 255, Math.random() * 255)
+      draft.parentID = 4
+      this.addItem(draft)
+      draft = new ItemDraft(-1, 'qvqqvqvq')
+      draft.color =
+        Color.rgb(Math.random() * 255, Math.random() * 255, Math.random() * 255)
+      draft.parentID = 2
+      this.addItem(draft)
+      draft = new ItemDraft(-1, '324142124')
+      draft.color =
+        Color.rgb(Math.random() * 255, Math.random() * 255, Math.random() * 255)
+      draft.parentID = 1
+      this.addItem(draft)
+      for (let i = 0; i < 200; ++i) {
+        let draft = new ItemDraft(-1, 'Hello' + i.toString())
+        draft.color =
+          Color.rgb(
+            Math.random() * 255, Math.random() * 255, Math.random() * 255)
+        this.addItem(draft)
+      }
+    })
+  }
+
   public get state() {
     return this._state
   }
 
   public addItem(itemDraft: ItemDraft) {
+    this.pushUndo()
     this._state = this.addItemReducer(this._state, itemDraft)
+    this.notify()
   }
 
   public updateItem(itemDraft: ItemDraft) {
+    this.pushUndo()
     this._state = this.updateItemReducer(this._state, itemDraft)
+    this.notify()
   }
 
   public removeItem(itemID: ItemID) {
+    this.pushUndo()
     this._state = this.removeItemReducer(this._state, itemID)
+    this.notify()
   }
 
   public getItem(itemID: ItemID) {
     return this._state.items.get(itemID)
+  }
+
+  /**
+   * Execute func without triggering any notification or undo.
+   * Once func is returned, subscribers will be notified.
+   */
+  public batchEdit(func: () => void) {
+    this._freezeNotifyAndUndo = true
+    func()
+    this._freezeNotifyAndUndo = false
+    this.notify()
+  }
+
+  private pushUndo() {
+    if (this._freezeNotifyAndUndo) return
+
+    // TODO optimize: use a ring
+    this.undoHistory.push(this._state)
+    if (this.undoHistory.length > this.maxUndoHistory) {
+      this.undoHistory.shift()
+    }
+    this.redoHistory = []
+  }
+
+  canUndo() {
+    return this.undoHistory.length > 0
+  }
+
+  undo() {
+    if (this._freezeNotifyAndUndo) return
+
+    if (this.undoHistory.length > 0) {
+      this.redoHistory.push(this._state)
+      this._state = this.undoHistory.pop()!
+    }
+    this.notify()
+  }
+
+  canRedo() {
+    return this.redoHistory.length > 0
+  }
+
+  redo() {
+    if (this._freezeNotifyAndUndo) return
+
+    if (this.redoHistory.length > 0) {
+      this.undoHistory.push(this._state)
+      this._state = this.redoHistory.pop()!
+    }
+    this.notify()
+  }
+
+  private notify() {
+    if (this._freezeNotifyAndUndo) return
+
+    this.onChangeSubject.next(this)
+  }
+
+  private _removeAllChildrenOf(draft: Draft<DataStoreState>,
+                               item: Draft<Item>) {
+    const numChildren = item.childrenIDs.length
+    for (let i = 0; i < numChildren; ++i) {
+      const childID = item.childrenIDs[i]
+      const child = draft.items.get(childID)
+      if (child === undefined) {
+        throw new Error(`Child ${childID} not found`)
+      }
+      this._removeAllChildrenOf(draft, child)
+      draft.items.delete(childID)
+    }
+    item.childrenIDs = []
+  }
+
+  getItemColor(itemID: ItemID | undefined): Color {
+    let result: Color | undefined = undefined
+    do {
+      if (itemID === undefined) {
+        break
+      }
+
+      const item = this.getItem(itemID)
+      if (item !== undefined) {
+        result = item.color
+        itemID = item.parentID
+      }
+    } while (result === undefined)
+    return result || this.defaultColor
+  }
+
+  getRootItems() {
+    const result: Item[] = []
+    const numRootItems = this._state.rootItemIDs.length
+    for (let i = 0; i < numRootItems; i++) {
+      result.push(this.getItem(this._state.rootItemIDs[i])!)
+    }
+    return result
+  }
+
+  generateColor() {
+    const [r, g, b] = convert.hsl.rgb(
+      random(0, 360), random(50, 100), random(50, 75))
+    return Color.rgb(r, g, b)
+  }
+
+  getAutoCompleter() {
+    return new DataStoreAutoCompleter(this)
+  }
+
+  getQualifiedString(item: Item) {
+    let result = item.name
+    while (item.parentID !== undefined) {
+      const parent = this.getItem(item.parentID)
+      if (parent === undefined) {
+        throw new Error(`Parent ID ${item.parentID} not found`)
+      }
+      item = parent
+      result = item.name + ':' + result
+    }
+    return result
+  }
+
+  canBeParentOf(itemID: ItemID, parentID: ItemID) {
+    let p: ItemID | undefined = parentID
+    while (p !== undefined) {
+      if (itemID === p) return false
+      const parent = this.getItem(p)
+      if (parent === undefined) {
+        break
+      }
+      p = parent.parentID
+    }
+
+    return true
   }
 }

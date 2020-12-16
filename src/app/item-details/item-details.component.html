@@ -1,0 +1,65 @@
+<div class="header">
+  <button mat-icon-button (click)="close()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+<div class="content">
+  <form class="form" (keydown)="onFormKeyDown($event)">
+    <div class="full-width flex-row">
+      <mat-form-field class="flex-child right-margin">
+        <mat-label>Name</mat-label>
+        <input #nameInput matInput name="name" [(ngModel)]="draft.name"/>
+      </mat-form-field>
+      <mat-checkbox name="completed" [(ngModel)]="completed">
+        Completed
+      </mat-checkbox>
+    </div>
+    <div class="full-width flex-row">
+      <mat-form-field class="flex-child right-margin">
+        <mat-label>Cost (Estimated sessions needed)</mat-label>
+        <input #nameInput matInput name="cost" [(ngModel)]="cost"/>
+      </mat-form-field>
+      <mat-form-field class="flex-child">
+        <mat-label>Priority</mat-label>
+        <input #nameInput matInput name="priority" [(ngModel)]="priority"/>
+      </mat-form-field>
+    </div>
+    <div class="full-width flex-row">
+      <mat-form-field class="flex-child">
+        <mat-label>Parent</mat-label>
+        <input matInput name="parent" [(ngModel)]="parentItemKey"
+               [matAutocomplete]="auto"/>
+        <mat-autocomplete autoActiveFirstOption #auto="matAutocomplete">
+          <mat-option *ngFor="let option of filteredParentKeys | async"
+                      [value]="option">
+            {{option}}
+          </mat-option>
+        </mat-autocomplete>
+        <button type="button" *ngIf="parentItemKey !== ''" matSuffix
+                mat-icon-button (click)="parentItemKey=''">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+    <div class="full-width-field">
+      <mat-checkbox name="useParentColor" [(ngModel)]="useParentColor">
+        Use parent color
+      </mat-checkbox>
+      <div class="hfill"></div>
+      <mat-label class="field-label" *ngIf="!useParentColor">Color</mat-label>
+      <div class="color-picker-container">
+        <input [(colorPicker)]="colorString" [style.background]="colorString"
+               cpAlphaChannel="disabled" class="color-picker"
+               *ngIf="!useParentColor"/>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="footer">
+  <p *ngIf="!isAddingNewItem" class="id-text">ID: {{draft.id}}</p>
+  <div class="hfill"></div>
+  <p class="key-hint-text right-margin">ctrl + enter</p>
+  <button mat-raised-button (click)="save()" color="primary">
+    Save
+  </button>
+</div>
