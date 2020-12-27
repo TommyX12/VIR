@@ -14,6 +14,7 @@ import {MatDividerModule} from '@angular/material/divider'
 import {FormsModule} from '@angular/forms'
 import {DragDropModule} from '@angular/cdk/drag-drop'
 import {ScrollingModule} from '@angular/cdk/scrolling'
+import {MatButtonToggleModule} from '@angular/material/button-toggle'
 
 @NgModule({
   declarations: [ItemsComponent],
@@ -32,6 +33,7 @@ import {ScrollingModule} from '@angular/cdk/scrolling'
     FormsModule,
     DragDropModule,
     ScrollingModule,
+    MatButtonToggleModule,
   ],
   exports: [
     ItemsComponent,

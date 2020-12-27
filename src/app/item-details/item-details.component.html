@@ -17,11 +17,11 @@
     <div class="full-width flex-row">
       <mat-form-field class="flex-child right-margin">
         <mat-label>Cost (Estimated sessions needed)</mat-label>
-        <input #nameInput matInput name="cost" [(ngModel)]="cost"/>
+        <input matInput name="cost" [(ngModel)]="cost"/>
       </mat-form-field>
       <mat-form-field class="flex-child">
         <mat-label>Priority</mat-label>
-        <input #nameInput matInput name="priority" [(ngModel)]="priority"/>
+        <input matInput name="priority" [(ngModel)]="priority"/>
       </mat-form-field>
     </div>
     <div class="full-width flex-row">
@@ -46,11 +46,17 @@
         Use parent color
       </mat-checkbox>
       <div class="hfill"></div>
-      <mat-label class="field-label" *ngIf="!useParentColor">Color</mat-label>
-      <div class="color-picker-container">
-        <input [(colorPicker)]="colorString" [style.background]="colorString"
-               cpAlphaChannel="disabled" class="color-picker"
-               *ngIf="!useParentColor"/>
+      <div *ngIf="!useParentColor" class="color-container">
+        <mat-label class="field-label">Color</mat-label>
+        <div class="color-picker-container">
+          <input [(colorPicker)]="colorString" [style.background]="colorString"
+                 cpAlphaChannel="disabled" class="color-picker"/>
+        </div>
+        <button mat-icon-button (click)="setRandomColor()"
+                matTooltip="Random"
+                matTooltipPosition="above">
+          <mat-icon>autorenew</mat-icon>
+        </button>
       </div>
     </div>
   </form>

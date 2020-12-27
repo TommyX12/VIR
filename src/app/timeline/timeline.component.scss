@@ -1,0 +1,75 @@
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.today-date {
+  font-weight: bold;
+}
+
+.toolbar {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 10px;
+  padding-right: 10px;
+  box-sizing: border-box;
+}
+
+.dow-header {
+  width: 100%;
+  height: 30px;
+}
+
+.dow-table {
+  width: 100%;
+  height: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.dow-cell {
+  text-align: center;
+}
+
+.divider {
+  width: 100%;
+}
+
+.right-margin {
+  margin-right: 10px;
+}
+
+.hfill {
+  flex: 1;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+}
+
+.date-input {
+  width: 120px;
+}
+
+.calendar {
+  width: 100%;
+  height: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.calendar td {
+  border: 1px solid #88888866;
+}

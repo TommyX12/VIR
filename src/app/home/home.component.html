@@ -24,8 +24,19 @@
       Sidenav placeholder content and stuff
     </mat-sidenav>
     <mat-sidenav-content>
-      <mat-tab-group color="accent" animationDuration="250ms" class="tab-group">
-        <mat-tab label="test">test</mat-tab>
+      <mat-tab-group color="accent" animationDuration="0ms" class="tab-group"
+                     [(selectedIndex)]="selectedTabIndex"
+                     (selectedTabChange)="onSelectedTabChange($event)">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="tab-label">
+              <mat-icon class="tab-label-icon">today</mat-icon>
+              Timeline
+            </span>
+          </ng-template>
+          <app-timeline #timelineTab>
+          </app-timeline>
+        </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
             <span class="tab-label">
@@ -33,7 +44,7 @@
               Items
             </span>
           </ng-template>
-          <app-items>
+          <app-items #itemsTab>
           </app-items>
         </mat-tab>
       </mat-tab-group>

@@ -15,6 +15,7 @@ import {MatIconModule} from '@angular/material/icon'
 import {MatToolbarModule} from '@angular/material/toolbar'
 import {MatSlideToggleModule} from '@angular/material/slide-toggle'
 import {MatTooltipModule} from '@angular/material/tooltip'
+import {TimelineModule} from '../timeline/timeline.module'
 
 @NgModule({
   declarations: [HomeComponent],
@@ -22,7 +23,7 @@ import {MatTooltipModule} from '@angular/material/tooltip'
     CommonModule, SharedModule, HomeRoutingModule, MatButtonModule,
     MatToolbarModule, MatIconModule, MatSlideToggleModule, MatSidenavModule,
     MatTabsModule, ItemsModule,
-    MatTooltipModule,
+    MatTooltipModule, TimelineModule,
   ],
 })
 export class HomeModule {

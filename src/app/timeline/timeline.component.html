@@ -1,0 +1,66 @@
+<div class="container">
+  <div class="toolbar">
+    <p
+      class="today-date right-margin">{{getNowDate() | date:'fullDate'}}</p>
+    <div class="hfill"></div>
+    <button class="right-margin" mat-stroked-button (click)="gotoTodayWeek()">
+      Today
+    </button>
+    <button mat-icon-button
+            [matTooltip]="'Previous ' + (viewRange === 'week' ? 'Week' : 'Month')"
+            (click)="changeWeek(viewRange === 'week' ? -1 : -4)"
+            matTooltipPosition="above">
+      <mat-icon>chevron_left</mat-icon>
+    </button>
+    <button mat-icon-button
+            [matTooltip]="'Next ' + (viewRange === 'week' ? 'Week' : 'Month')"
+            (click)="changeWeek(viewRange === 'week' ? 1 : 4)"
+            matTooltipPosition="above">
+      <mat-icon>chevron_right</mat-icon>
+    </button>
+    <p class="right-margin">Week of</p>
+    <mat-form-field class="right-margin date-input">
+      <input matInput [matDatepicker]="datePicker" disabled
+             [value]="weekStartDate"
+             (dateChange)="onDateChanged($event)">
+      <mat-datepicker-toggle matSuffix [disabled]="false"
+                             [for]="datePicker"></mat-datepicker-toggle>
+      <mat-datepicker #datePicker [disabled]="false"></mat-datepicker>
+    </mat-form-field>
+    <mat-button-toggle-group [(ngModel)]="viewRange"
+                             appearance="legacy">
+      <mat-button-toggle value="month">Month</mat-button-toggle>
+      <mat-button-toggle value="week">Week</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+  <mat-divider class="divider"></mat-divider>
+  <div class="dow-header">
+    <table class="dow-table">
+      <tbody>
+      <tr>
+        <td class="dow-cell" *ngFor="let d of dowDates">
+          {{d | date:'E'}}
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="content">
+    <table class="calendar">
+      <tbody>
+      <tr *ngFor="let row of rows; trackBy:identity"
+          [style.height]="(100 / rows.length) + '%'">
+        <td *ngFor="let column of columns; trackBy:identity">
+          <app-month-day-view
+            #monthDayView
+            [dayID]="getDayIDOfCell(row, column)"
+            [todayDayID]="todayDayID"
+            [dayData]="getDayData(row, column)"
+            [forceDisplayMonth]="shouldDisplayMonth(row, column)">
+          </app-month-day-view>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

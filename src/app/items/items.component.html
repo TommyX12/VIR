@@ -24,89 +24,78 @@
         <mat-icon>close</mat-icon>
       </button>
     </mat-form-field>
-    <mat-slide-toggle [(ngModel)]="showCompleted" class="right-margin"
-                      matTooltip="Show Completed"
-                      matTooltipPosition="above">
-      <mat-icon class="toggle-icon">check_circle</mat-icon>
-    </mat-slide-toggle>
+    <mat-button-toggle-group class="right-margin" [(ngModel)]="statusFilter"
+                             appearance="legacy">
+      <mat-button-toggle value="active">Active</mat-button-toggle>
+      <mat-button-toggle value="all">All</mat-button-toggle>
+      <mat-button-toggle value="completed">Completed</mat-button-toggle>
+    </mat-button-toggle-group>
+    <!--    <mat-slide-toggle [(ngModel)]="showActive" class="right-margin"-->
+    <!--                      matTooltip="Show Active"-->
+    <!--                      matTooltipPosition="above">-->
+    <!--      <mat-icon class="toggle-icon">radio_button_unchecked</mat-icon>-->
+    <!--    </mat-slide-toggle>-->
+    <!--    <mat-slide-toggle [(ngModel)]="showCompleted" class="right-margin"-->
+    <!--                      matTooltip="Show Completed"-->
+    <!--                      matTooltipPosition="above">-->
+    <!--      <mat-icon class="toggle-icon">check_circle</mat-icon>-->
+    <!--    </mat-slide-toggle>-->
   </div>
-  <div class="tree-container">
-    <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-      <!-- Leaf nodes -->
-      <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding
-                     [matTreeNodePaddingIndent]="indentation"
-                     class="item">
+  <mat-divider class="divider"></mat-divider>
+  <div class="tree-container" #scrollContainer>
+    <cdk-virtual-scroll-viewport [itemSize]="itemHeight" minBufferPx="1400"
+                                 #scrollViewport
+                                 maxBufferPx="1800" class="tree-viewport">
+      <div *cdkVirtualFor="let node of dataSource; trackBy:trackByFn"
+           [style.padding-left]="getPadding(node)"
+           (dragstart)="onNodeDragStart(node, $event)"
+           draggable="true"
+           class="item">
         <app-item [node]="node" class="item-content"
-                  (bodyClicked)="!node.isDragging && openDetails(node.id)"
-                  cdkDrag
-                  cdkDragLockAxis="y"
-                  (cdkDragStarted)="onDragStarted(node, $event)"
-                  (cdkDragReleased)="onDragReleased(node, $event)">
-          <button mat-icon-button disabled prefix>
-            <mat-icon></mat-icon>
-          </button>
+                  [itemHeight]="itemHeight"
+                  (itemDropped)="onItemDropped($event)"
+                  (bodyClicked)="openDetails(node.id)">
+          <span prefix>
+            <button *ngIf="node.expandable"
+                    mat-icon-button
+                    (click)="treeControl.toggle(node)"
+                    [attr.aria-label]="'Toggle ' + node.name">
+              <mat-icon class="mat-icon-rtl-mirror">
+                {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+              </mat-icon>
+            </button>
+            <button *ngIf="!node.expandable" mat-icon-button disabled>
+              <mat-icon></mat-icon>
+            </button>
+          </span>
           <div suffix>
-            <button mat-icon-button disabled>
+            <button *ngIf="node.expandable"
+                    mat-icon-button
+                    matTooltip="Expand/Collapse All"
+                    matTooltipPosition="above"
+                    (click)="treeControl.toggleDescendants(node)">
+              <mat-icon>
+                {{treeControl.isExpanded(node) ? 'unfold_less' : 'unfold_more'}}
+              </mat-icon>
+            </button>
+            <button *ngIf="!node.expandable" mat-icon-button disabled>
               <mat-icon></mat-icon>
             </button>
             <button mat-icon-button
                     matTooltip="Delete"
                     matTooltipPosition="above"
-                    (click)="!node.isDragging && removeItem(node)">
+                    (click)="removeItem(node)">
               <mat-icon>close</mat-icon>
             </button>
             <button mat-icon-button
                     matTooltip="Add Child"
                     matTooltipPosition="above"
-                    (click)="!node.isDragging && addChildItem(node)">
+                    (click)="addChildItem(node)">
               <mat-icon>add</mat-icon>
             </button>
           </div>
         </app-item>
-      </mat-tree-node>
-      <!-- Expandable nodes -->
-      <mat-tree-node *matTreeNodeDef="let node; when: hasChild"
-                     matTreeNodePadding
-                     [matTreeNodePaddingIndent]="indentation"
-                     class="item">
-        <app-item [node]="node" class="item-content"
-                  (bodyClicked)="!node.isDragging && openDetails(node.id)"
-                  cdkDrag
-                  cdkDragLockAxis="y"
-                  (cdkDragStarted)="onDragStarted(node, $event)"
-                  (cdkDragReleased)="onDragReleased(node, $event)">
-          <button mat-icon-button
-                  (click)="!node.isDragging && treeControl.toggle(node)"
-                  [attr.aria-label]="'Toggle ' + node.name"
-                  prefix>
-            <mat-icon class="mat-icon-rtl-mirror">
-              {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
-            </mat-icon>
-          </button>
-          <div suffix>
-            <button mat-icon-button
-                    matTooltip="Expand/Collapse All"
-                    matTooltipPosition="above"
-                    (click)="!node.isDragging && treeControl.toggleDescendants(node)">
-              <mat-icon>
-                {{treeControl.isExpanded(node) ? 'unfold_less' : 'unfold_more'}}
-              </mat-icon>
-            </button>
-            <button mat-icon-button
-                    matTooltip="Delete"
-                    matTooltipPosition="above"
-                    (click)="!node.isDragging && removeItem(node)">
-              <mat-icon>close</mat-icon>
-            </button>
-            <button mat-icon-button
-                    matTooltip="Add Child"
-                    matTooltipPosition="above"
-                    (click)="!node.isDragging && addChildItem(node)">
-              <mat-icon>add</mat-icon>
-            </button>
-          </div>
-        </app-item>
-      </mat-tree-node>
-    </mat-tree>
+      </div>
+    </cdk-virtual-scroll-viewport>
   </div>
 </div>

@@ -38,6 +38,8 @@ export interface ItemDetailsConfig {
   styleUrls: ['./item-details.component.scss'],
 })
 export class ItemDetailsComponent implements AfterViewInit {
+  static readonly DIALOG_WIDTH = '500px'
+
   // @ts-ignore
   @ViewChild('nameInput') nameInput: ElementRef
 
@@ -82,7 +84,7 @@ export class ItemDetailsComponent implements AfterViewInit {
   get colorString() {
     const color = this.draft.color
     if (color === undefined) {
-      return '#000000'
+      return '#888888'
     }
     return color.hex()
   }
@@ -100,7 +102,7 @@ export class ItemDetailsComponent implements AfterViewInit {
       this.draft.color = undefined
     } else {
       if (this.isAddingNewItem) {
-        this.draft.color = Color('#000000')
+        this.draft.color = Color('#888888')
       } else {
         this.draft.color = this.dataStore.getItemColor(this.draft.id)
       }
@@ -145,7 +147,7 @@ export class ItemDetailsComponent implements AfterViewInit {
 
   set parentItemKey(value: string) {
     this._parentItemKey = value
-    this.filteredParentKeys.next(this.autoCompleter.queryKeys(value))
+    this.filteredParentKeys.next(this.autoCompleter.queryKeys(value, 10))
   }
 
   close(): void {
@@ -154,7 +156,8 @@ export class ItemDetailsComponent implements AfterViewInit {
 
   ngAfterViewInit(): void {
     setTimeout(() => {
-      this.nameInput.nativeElement.focus()
+      this.nameInput?.nativeElement?.focus()
+      this.nameInput?.nativeElement?.select()
     })
   }
 
@@ -185,9 +188,8 @@ export class ItemDetailsComponent implements AfterViewInit {
       return
     }
 
-    if (this.draft.parentID === undefined && this.useParentColor) {
-      this.errorNoParentColor()
-      return
+    if (this.draft.cost < 0) {
+      this.errorInvalidCost()
     }
 
     // Finalize
@@ -203,6 +205,10 @@ export class ItemDetailsComponent implements AfterViewInit {
     alert('Error: parent not found')
   }
 
+  private errorInvalidCost() {
+    alert('Error: invalid cost')
+  }
+
   private errorInvalidParent() {
     alert('Error: parent is invalid')
   }
@@ -213,11 +219,11 @@ export class ItemDetailsComponent implements AfterViewInit {
     }
   }
 
-  private errorNoParentColor() {
-    alert('Error: cannot use parent color')
-  }
-
   private errorInvalidName() {
     alert('Error: invalid name')
+  }
+
+  setRandomColor() {
+    this.draft.color = this.dataStore.generateColor()
   }
 }

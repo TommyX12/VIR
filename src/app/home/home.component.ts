@@ -1,24 +1,52 @@
-import {Component, HostBinding, OnInit} from '@angular/core'
+import {
+  AfterViewInit,
+  Component,
+  HostBinding,
+  OnInit,
+  ViewChild,
+} from '@angular/core'
 import {Router} from '@angular/router'
 import {OverlayContainer} from '@angular/cdk/overlay'
 import {DataStore} from '../data/data-store'
+import {ItemsComponent} from '../items/items.component'
+import {MatTabChangeEvent} from '@angular/material/tabs'
+import {TimelineComponent} from '../timeline/timeline.component'
 
 const THEME_DARKNESS_SUFFIX = `-dark`
 const DEFAULT_THEME_NAME = 'main'
 const DEFAULT_DARKNESS = true
+
+interface TabData {
+  getComponent(): any | undefined
+}
 
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, AfterViewInit {
   // @ts-ignore
   @HostBinding('class') activeThemeCssClass: string
+
+  @ViewChild('timelineTab') timelineTab?: TimelineComponent
+  @ViewChild('itemsTab') itemTab?: ItemsComponent
+
+  tabs: TabData[] = [
+    {
+      getComponent: () => this.timelineTab,
+    },
+    {
+      getComponent: () => this.itemTab,
+    },
+  ]
+
   isThemeDark = false
 
   private activeTheme = DEFAULT_THEME_NAME
   private _enableDarkMode = DEFAULT_DARKNESS
+  public selectedTabIndex = 0
+  public activatedTabIndex = -1
 
   constructor(private router: Router,
               private overlayContainer: OverlayContainer,
@@ -53,4 +81,41 @@ export class HomeComponent implements OnInit {
   ngOnInit(): void {
   }
 
+  ngAfterViewInit() {
+    setTimeout(() => {
+      this.onSelectedIndexChange(this.selectedTabIndex)
+    })
+  }
+
+  activateTab(index: number) {
+    const tabData = this.tabs[index]
+    const component = tabData.getComponent()
+    if (component !== undefined) {
+      if (component.onActivate !== undefined) {
+        component.onActivate()
+      }
+    }
+  }
+
+  deactivateTab(index: number) {
+    const tabData = this.tabs[index]
+    const component = tabData.getComponent()
+    if (component !== undefined) {
+      if (component.onDeactivate !== undefined) {
+        component.onDeactivate()
+      }
+    }
+  }
+
+  onSelectedTabChange(event: MatTabChangeEvent) {
+    this.onSelectedIndexChange(event.index)
+  }
+
+  onSelectedIndexChange(index: number) {
+    if (this.activatedTabIndex >= 0) {
+      this.deactivateTab(this.activatedTabIndex)
+    }
+    this.activatedTabIndex = index
+    this.activateTab(index)
+  }
 }

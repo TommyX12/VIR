@@ -1,0 +1,128 @@
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.content {
+  width: 100%;
+  flex: 1;
+  margin-top: 5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.color-block {
+  width: 5px;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 25px;
+  background-color: #88888822;
+  cursor: pointer;
+}
+
+.session {
+  height: 23px;
+  font-size: 0.7em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid #88888833;
+  padding-right: 5px;
+  cursor: pointer;
+}
+
+.item-name {
+  margin-left: 5px;
+}
+
+.container-faded {
+  opacity: 0.55;
+}
+
+.faded {
+  opacity: 0.75;
+}
+
+.session-icon {
+  margin-left: 4px;
+  vertical-align: center;
+  position: relative;
+  top: 6px;
+}
+
+.item-icon {
+  vertical-align: center;
+  position: relative;
+  top: 1px;
+  margin-right: 3px;
+}
+
+.session:hover {
+  outline: 2px solid #55bbeaaa;
+  outline-offset: -2px;
+}
+
+.header.is-today {
+  background-color: #55bbea44;
+}
+
+.header.is-past {
+  background-color: transparent;
+}
+
+.header:hover {
+  outline: 2px solid #55bbeaaa;
+  outline-offset: -2px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 2px;
+  background-color: #88888811;
+}
+
+.progress-bar-filled {
+  width: 0%;
+  height: 100%;
+  background-color: #55bbeaaa;
+}
+
+.date.is-past {
+  color: #888888;
+}
+
+.date.is-today {
+  font-weight: bold;
+}
+
+.date.is-start-of-month {
+  color: #4488ff;
+}
+
+.date {
+  margin-left: 5px;
+  font-size: 0.9em;
+}
+
+.icon-button {
+  font-size: 25px;
+  cursor: pointer;
+}
+
+.hfill {
+  flex: 1;
+  pointer-events: none;
+}
+
+.no-pointer-event {
+  pointer-events: none;
+}

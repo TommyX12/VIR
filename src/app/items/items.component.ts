@@ -1,4 +1,13 @@
-import {ChangeDetectorRef, Component, OnDestroy, OnInit} from '@angular/core'
+import {
+  AfterViewInit,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  NgZone,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core'
 import Color from 'color'
 import {FlatTreeControl} from '@angular/cdk/tree'
 import {MatTreeFlatDataSource, MatTreeFlattener} from '@angular/material/tree'
@@ -14,9 +23,11 @@ import {MatDialog} from '@angular/material/dialog'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
 import {ItemID} from '../data/common'
 import {debounceTime} from 'rxjs/operators'
-import {CdkDragRelease, CdkDragStart} from '@angular/cdk/drag-drop'
-
-const DIALOG_WIDTH = '500px'
+import {CdkVirtualScrollViewport} from '@angular/cdk/scrolling'
+import {
+  ItemDroppedEvent,
+  ItemDroppedInsertionType,
+} from '../item/item.component'
 
 const SEARCH_IDLE_DELAY = 200
 
@@ -30,11 +41,11 @@ export interface ItemNode {
   priority: number
   isIndirect: boolean
   color: Color
-  isDragging: boolean
 }
 
 class ItemFilter {
   showCompleted = false
+  showActive = true
   searchQuery: string = ''
   autocompleter?: DataStoreAutoCompleter
 
@@ -45,6 +56,10 @@ class ItemFilter {
   process(items: Item[]): Item[] {
     if (!this.showCompleted) {
       items = items.filter(item => item.status !== ItemStatus.COMPLETED)
+    }
+
+    if (!this.showActive) {
+      items = items.filter(item => item.status !== ItemStatus.ACTIVE)
     }
 
     if (this.autocompleter !== undefined && this.searchQuery !== '') {
@@ -65,7 +80,11 @@ class ItemFilter {
   templateUrl: './items.component.html',
   styleUrls: ['./items.component.scss'],
 })
-export class ItemsComponent implements OnInit, OnDestroy {
+export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
+  @ViewChild('scrollViewport') scrollViewport?: CdkVirtualScrollViewport
+  @ViewChild(
+    'scrollViewport', {read: ElementRef}) scrollViewportElement?: ElementRef
+
   itemHeight = 35
   indentation: number = 20
 
@@ -99,7 +118,6 @@ export class ItemsComponent implements OnInit, OnDestroy {
       priority: node.priority,
       isIndirect: this.indirectAllowedItemIDs.has(node.id),
       color: node.color || this.dataStore.getItemColor(node.parentID),
-      isDragging: false,
     }
   }
 
@@ -137,13 +155,14 @@ export class ItemsComponent implements OnInit, OnDestroy {
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly dataStore: DataStore,
     private readonly dialog: MatDialog,
+    private readonly zone: NgZone,
   ) {
     this.dataSource.data = []
   }
 
   ngOnInit() {
-    this.dataStoreChangeSubscription =
-      this.dataStore.onChange.subscribe(this.onDataChanged)
+    this.subscribeToData()
+
     this.searchQueryChangeSubscription = this.searchQueryValue.pipe(
       debounceTime(SEARCH_IDLE_DELAY),
     ).subscribe((value) => {
@@ -152,12 +171,21 @@ export class ItemsComponent implements OnInit, OnDestroy {
     })
   }
 
+  ngAfterViewInit() {
+  }
+
   ngOnDestroy() {
-    this.dataStoreChangeSubscription?.unsubscribe()
+    this.unsubscribeFromData()
+
     this.searchQueryChangeSubscription?.unsubscribe()
+    this.searchQueryChangeSubscription = undefined
   }
 
   hasChild = (_: number, node: ItemNode) => node.expandable
+
+  getPadding(node: ItemNode) {
+    return this.treeControl.getLevel(node) * this.indentation + 'px'
+  }
 
   get showCompleted() {
     return this.filter.showCompleted
@@ -165,6 +193,45 @@ export class ItemsComponent implements OnInit, OnDestroy {
 
   set showCompleted(value: boolean) {
     this.filter.showCompleted = value
+    this.refresh()
+  }
+
+  get showActive() {
+    return this.filter.showActive
+  }
+
+  set showActive(value: boolean) {
+    this.filter.showActive = value
+    this.refresh()
+  }
+
+  get statusFilter() {
+    if (this.filter.showActive) {
+      if (this.filter.showCompleted) {
+        return 'all'
+      } else {
+        return 'active'
+      }
+    } else {
+      if (this.filter.showCompleted) {
+        return 'completed'
+      } else {
+        return 'none'
+      }
+    }
+  }
+
+  set statusFilter(value: string) {
+    this.filter.showActive = false
+    this.filter.showCompleted = false
+    if (value == 'all') {
+      this.filter.showActive = true
+      this.filter.showCompleted = true
+    } else if (value == 'active') {
+      this.filter.showActive = true
+    } else if (value == 'completed') {
+      this.filter.showCompleted = true
+    }
     this.refresh()
   }
 
@@ -179,7 +246,7 @@ export class ItemsComponent implements OnInit, OnDestroy {
 
   newItem(parentID?: ItemID) {
     const dialogRef = this.dialog.open(ItemDetailsComponent, {
-      width: DIALOG_WIDTH,
+      width: ItemDetailsComponent.DIALOG_WIDTH,
       data: {
         initialColor: parentID === undefined ? this.dataStore.generateColor() :
           undefined,
@@ -197,7 +264,7 @@ export class ItemsComponent implements OnInit, OnDestroy {
   openDetails(id: ItemID) {
     const item = this.dataStore.getItem(id)
     const dialogRef = this.dialog.open(ItemDetailsComponent, {
-      width: DIALOG_WIDTH,
+      width: ItemDetailsComponent.DIALOG_WIDTH,
       data: {item},
       hasBackdrop: true,
       disableClose: false,
@@ -284,7 +351,7 @@ export class ItemsComponent implements OnInit, OnDestroy {
     }
   }
 
-  refresh() {
+  private refresh() {
     this.updateAllowedItems()
     this.dataSource.data = this.dataStore.getRootItems()
       .filter(item => this.allowedItemIDs.has(item.id))
@@ -294,16 +361,66 @@ export class ItemsComponent implements OnInit, OnDestroy {
     this.changeDetectorRef.detectChanges()
   }
 
-  onDragStarted(node: ItemNode, event: CdkDragStart) {
-    this.treeControl.collapse(node)
-    node.isDragging = true
+  trackByFn(index, node: ItemNode) {
+    return node.id
   }
 
-  onDragReleased(node: ItemNode, event: CdkDragRelease) {
-    // This prevents click events from firing
-    setTimeout(() => {
-      node.isDragging = false
-    })
-    event.source.reset()
+  subscribeToData() {
+    if (this.dataStoreChangeSubscription === undefined) {
+      this.dataStoreChangeSubscription =
+        this.dataStore.onChange.subscribe(this.onDataChanged)
+    }
+  }
+
+  unsubscribeFromData() {
+    this.dataStoreChangeSubscription?.unsubscribe()
+    this.dataStoreChangeSubscription = undefined
+  }
+
+  /**
+   * Will be called when this as a tab is selected
+   */
+  onActivate() {
+    this.subscribeToData()
+
+    // This forces the virtual scroll to redraw
+    const el = this.scrollViewportElement?.nativeElement
+    el?.dispatchEvent(new Event('scroll'))
+  }
+
+  /**
+   * Will be called when another tab is selected
+   */
+  onDeactivate() {
+    this.unsubscribeFromData()
+  }
+
+  onNodeDragStart(node: ItemNode, event: DragEvent) {
+    this.treeControl.collapse(node)
+    event.dataTransfer?.setData('text', 'itemID ' + node.id.toString())
+  }
+
+  onItemDropped(event: ItemDroppedEvent) {
+    const {draggedItemID, receiverItemID, insertionType} = event
+    if (insertionType === ItemDroppedInsertionType.CHILD) {
+      if (!this.dataStore.canBeParentOf(draggedItemID, receiverItemID)) return
+      const item = this.dataStore.getItem(draggedItemID)
+      if (item !== undefined) {
+        const draft = item.toDraft()
+        draft.parentID = receiverItemID
+        this.dataStore.updateItem(draft)
+      }
+    } else {
+      if (draggedItemID === receiverItemID) return
+      const parentID = this.dataStore.getItem(receiverItemID)?.parentID
+      const item = this.dataStore.getItem(draggedItemID)
+      if (item !== undefined) {
+        const draft = item.toDraft()
+        const insert = insertionType === ItemDroppedInsertionType.BELOW ?
+          'below' : 'above'
+        draft.parentID = parentID
+        this.dataStore.updateItem(draft, {anchor: receiverItemID, insert})
+      }
+    }
   }
 }

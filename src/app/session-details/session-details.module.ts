@@ -1,19 +1,19 @@
 import {NgModule} from '@angular/core'
 import {CommonModule} from '@angular/common'
-import {ItemDetailsComponent} from './item-details.component'
+import {SessionDetailsComponent} from './session-details.component'
 import {MatButtonModule} from '@angular/material/button'
 import {MatIconModule} from '@angular/material/icon'
 import {MatInputModule} from '@angular/material/input'
 import {MatFormFieldModule} from '@angular/material/form-field'
 import {FormsModule, ReactiveFormsModule} from '@angular/forms'
-import {ColorPickerModule} from 'ngx-color-picker'
 import {MatCheckboxModule} from '@angular/material/checkbox'
 import {MatAutocompleteModule} from '@angular/material/autocomplete'
 import {MatTooltipModule} from '@angular/material/tooltip'
+import {MatSelectModule} from '@angular/material/select'
 
 
 @NgModule({
-  declarations: [ItemDetailsComponent],
+  declarations: [SessionDetailsComponent],
   imports: [
     CommonModule,
     MatButtonModule,
@@ -21,14 +21,14 @@ import {MatTooltipModule} from '@angular/material/tooltip'
     MatInputModule,
     MatFormFieldModule,
     FormsModule,
-    ColorPickerModule,
     MatCheckboxModule,
     MatAutocompleteModule,
     ReactiveFormsModule,
     MatTooltipModule,
+    MatSelectModule,
   ],
-  entryComponents: [ItemDetailsComponent],
-  exports: [ItemDetailsComponent],
+  entryComponents: [SessionDetailsComponent],
+  exports: [SessionDetailsComponent],
 })
-export class ItemDetailsModule {
+export class SessionDetailsModule {
 }

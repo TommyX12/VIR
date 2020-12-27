@@ -1,15 +1,40 @@
 import Color from 'color'
 import convert from 'color-convert'
 import produce, {Draft, immerable} from 'immer'
-import {random, removeValue} from '../util/util'
-import {DayID, ItemID, SessionData} from './common'
+import {getOrCreate, random, removeValue} from '../util/util'
+import {DayID, ItemID} from './common'
 import {Injectable} from '@angular/core'
 import {BehaviorSubject} from 'rxjs'
-import Fuse from 'fuse.js'
+import {dayIDNow} from '../util/time-util'
+
+export enum SessionModificationType {
+  SET,
+  ADD,
+}
+
+function applySessionModification(existingCount: number,
+                                  modification: SessionModificationType,
+                                  count: number): number {
+  let result = 0
+  if (modification === SessionModificationType.SET) {
+    result = count
+  } else if (modification === SessionModificationType.ADD) {
+    result = existingCount + count
+  } else {
+    result = existingCount
+  }
+  return Math.max(0, result)
+}
 
 export enum ItemStatus {
   ACTIVE,
   COMPLETED,
+}
+
+export enum SessionType {
+  COMPLETED,
+  SCHEDULED,
+  PROJECTED,
 }
 
 export class Item {
@@ -83,9 +108,7 @@ export class DayMap<T> {
 
   private static readonly PARTITION_SIZE = 30
 
-  constructor(
-    private readonly defaultValue?: T,
-  ) {
+  constructor() {
   }
 
   private static toPartitionID(dayID: DayID) {
@@ -96,10 +119,10 @@ export class DayMap<T> {
     return this.partitions.get(DayMap.toPartitionID(dayID))
   }
 
-  public get(dayID: DayID) {
+  public tryGet(dayID: DayID) {
     const partition = this.getPartition(dayID)
     if (partition === undefined) {
-      return this.defaultValue
+      return undefined
     }
 
     return partition.get(dayID)
@@ -120,17 +143,36 @@ export class DayMap<T> {
     partition.set(dayID, value)
   }
 
-  public static get<T>(draft: Draft<DayMap<T>>, dayID: DayID) {
+  public static tryGet<T>(draft: Draft<DayMap<T>>, dayID: DayID) {
     const partitionID = DayMap.toPartitionID(dayID)
     // @ts-ignore
     let partition: Map<DayID, T> | undefined = draft.partitions.get(
       partitionID)
     if (partition === undefined) {
-      // @ts-ignore
-      return draft.defaultValue
+      return undefined
     }
 
     return partition.get(dayID)
+  }
+
+  public static getOrCreate<T>(draft: Draft<DayMap<T>>, dayID: DayID,
+                               creator: () => T) {
+    const partitionID = DayMap.toPartitionID(dayID)
+    // @ts-ignore
+    let partition: Map<DayID, T> | undefined = draft.partitions.get(
+      partitionID)
+    if (partition === undefined) {
+      partition = new Map<DayID, T>()
+      // @ts-ignore
+      draft.partitions.set(partitionID, partition)
+    }
+
+    let result = partition.get(dayID)
+    if (result === undefined) {
+      result = creator()
+      partition.set(dayID, result)
+    }
+    return result
   }
 
   public static remove<T>(draft: Draft<DayMap<T>>, dayID: DayID) {
@@ -153,8 +195,7 @@ export class DayMap<T> {
 export class DayData {
   [immerable] = true
 
-  completed: SessionData[] = []
-  scheduled: SessionData[] = []
+  sessions = new Map<SessionType, Map<ItemID, number>>()
 }
 
 export interface DataStoreState {
@@ -164,9 +205,15 @@ export interface DataStoreState {
   nextID: number
 }
 
-type DataStoreAutoCompleterData = {
-  key: string,
+export interface DataStoreAutoCompleterData {
+  key: string
   id: ItemID
+}
+
+export interface DataStoreAutoCompleterResult {
+  key: string
+  id: ItemID
+  score: number
 }
 
 /**
@@ -175,14 +222,11 @@ type DataStoreAutoCompleterData = {
 export class DataStoreAutoCompleter {
   private data: DataStoreAutoCompleterData[] = []
 
-  private fuse: Fuse<DataStoreAutoCompleterData>
-
   private _keyToID = new Map<string, ItemID>()
   private _idToKey = new Map<ItemID, string>()
 
   constructor(
     dataStore: DataStore,
-    public numCandidates: number = 10,
   ) {
     // TODO: optimize: use DFS to reduce the amount of parent-tracing
     const keyCount = new Map<string, number>()
@@ -209,19 +253,6 @@ export class DataStoreAutoCompleter {
       this._keyToID.set(entry.key, entry.id)
       this._idToKey.set(entry.id, entry.key)
     }
-
-    this.fuse = new Fuse(this.data, {
-      keys: ['key'],
-      includeScore: true,
-      ignoreLocation: true,
-      sortFn: (a, b) => {
-        if (a.score != b.score) {
-          return a.score - b.score
-        }
-        // @ts-ignore
-        return a.item[0].v.localeCompare(b.item[0].v)
-      },
-    })
   }
 
   private static getKey(dataStore: DataStore, item: Item) {
@@ -231,23 +262,86 @@ export class DataStoreAutoCompleter {
     return dataStore.getQualifiedString(item)
   }
 
-  queryKeys(pattern: string) {
-    let result = this.fuse.search(pattern)
-    if (this.numCandidates > 0) {
-      result = result.slice(0, this.numCandidates)
+  query(pattern: string,
+        numCandidates: number = 0): DataStoreAutoCompleterResult[] {
+    let result: DataStoreAutoCompleterResult[] = []
+
+    pattern = pattern.toLowerCase()
+
+    const numEntries = this.data.length
+    for (let i = 0; i < numEntries; ++i) {
+      const data = this.data[i]
+      const key = data.key.toLowerCase()
+      const patternLen = pattern.length
+      const keyLen = key.length
+
+      let forwardScore = 0
+      let a = 0
+      let b = 0
+      let lastMatchedB = -1
+      while (a < patternLen && b < keyLen) {
+        if (pattern.charAt(a) === key.charAt(b)) {
+          ++a
+          if (lastMatchedB === -1) {
+            ++forwardScore
+          } else {
+            forwardScore += 1.0 / (b - lastMatchedB)
+            lastMatchedB = b
+          }
+        }
+        ++b
+      }
+
+      if (a !== patternLen) continue // No match
+
+      let backwardScore = 0
+      a = patternLen - 1
+      b = keyLen - 1
+      lastMatchedB = -1
+      while (a >= 0 && b >= 0) {
+        if (pattern.charAt(a) === key.charAt(b)) {
+          --a
+          if (lastMatchedB === -1) {
+            ++backwardScore
+          } else {
+            backwardScore += 1.0 / (lastMatchedB - b)
+            lastMatchedB = b
+          }
+        }
+        --b
+      }
+
+      const lengthScore = patternLen / keyLen
+      const score = Math.max(forwardScore, backwardScore) + lengthScore
+
+      result.push({
+        key: data.key, id: data.id, score,
+      })
     }
-    return result.map((entry) => {
-      return entry.item.key
+
+    result.sort((a, b) => {
+      if (a.score != b.score) {
+        return b.score - a.score
+      }
+      return a.key.localeCompare(b.key)
+    })
+
+    if (numCandidates > 0) {
+      result = result.slice(0, numCandidates)
+    }
+
+    return result
+  }
+
+  queryKeys(pattern: string, numCandidates: number = 0) {
+    return this.query(pattern, numCandidates).map((entry) => {
+      return entry.key
     })
   }
 
-  queryIDs(pattern: string) {
-    let result = this.fuse.search(pattern)
-    if (this.numCandidates > 0) {
-      result = result.slice(0, this.numCandidates)
-    }
-    return result.map((entry) => {
-      return entry.item.id
+  queryIDs(pattern: string, numCandidates: number = 0) {
+    return this.query(pattern, numCandidates).map((entry) => {
+      return entry.id
     })
   }
 
@@ -260,100 +354,152 @@ export class DataStoreAutoCompleter {
   }
 }
 
+function insertWithOptions(array: ItemID[], entry: ItemID,
+                           options: UpdateItemOptions) {
+  let anchorIndex = -1
+  if (options.anchor !== undefined) {
+    anchorIndex = array.indexOf(options.anchor)
+  }
+
+  if (anchorIndex >= 0) {
+    const insert = options.insert || 'above'
+    if (insert === 'below') {
+      anchorIndex++
+    }
+    array.splice(anchorIndex, 0, entry)
+  } else {
+    array.push(entry)
+  }
+}
+
+export interface UpdateItemOptions {
+  anchor?: ItemID
+  insert?: 'above' | 'below'
+}
+
 @Injectable()
 export class DataStore {
   private _state: DataStoreState = {
     items: new Map<ItemID, Item>(),
     nextID: 1,
     rootItemIDs: [],
-    timelineData: new DayMap<DayData>(new DayData()),
+    timelineData: new DayMap<DayData>(),
   }
 
   private undoHistory: DataStoreState[] = []
   private redoHistory: DataStoreState[] = []
 
-  private defaultColor = Color('#000000')
+  private defaultColor = Color('#888888')
+
+  static readonly defaultDayData = new DayData()
 
   private onChangeSubject = new BehaviorSubject<DataStore>(this)
 
   onChange = this.onChangeSubject.asObservable()
 
-  private addItemReducer = produce(
-    (draft: Draft<DataStoreState>, itemDraft: ItemDraft) => {
-      const id = draft.nextID
-      const item = itemDraft.toNewItem(id)
-      draft.nextID++
-      if (draft.items.has(item.id)) {
-        throw new Error(`Item with ID ${item.id} already exists`)
+  private addItemReducer = (draft: Draft<DataStoreState>,
+                            itemDraft: ItemDraft) => {
+    const id = draft.nextID
+    const item = itemDraft.toNewItem(id)
+    draft.nextID++
+    if (draft.nextID <= id) {
+      throw new Error('Item ID overflow')
+    }
+    if (draft.items.has(item.id)) {
+      throw new Error(`Item with ID ${item.id} already exists`)
+    }
+    draft.items.set(item.id, item)
+    if (item.parentID === undefined) {
+      draft.rootItemIDs.push(item.id)
+    } else {
+      const parent = draft.items.get(item.parentID)
+      if (parent === undefined) {
+        throw new Error(`Parent ID ${item.parentID} does not exist`)
       }
-      draft.items.set(item.id, item)
-      if (item.parentID === undefined) {
-        draft.rootItemIDs.push(item.id)
-      } else {
-        const parent = draft.items.get(item.parentID)
-        if (parent === undefined) {
-          throw new Error(`Parent ID ${item.parentID} does not exist`)
-        }
-        parent.childrenIDs.push(item.id)
-      }
-    })
+      parent.childrenIDs.push(item.id)
+    }
+  }
 
-  private updateItemReducer = produce(
-    (draft: Draft<DataStoreState>, itemDraft: ItemDraft) => {
-      const itemID = itemDraft.id
-      const item = draft.items.get(itemID)
-      if (item === undefined) {
-        throw new Error(`Item with ID ${itemID} does not exist`)
-      }
+  private updateItemReducer = (draft: Draft<DataStoreState>,
+                               itemDraft: ItemDraft,
+                               options: UpdateItemOptions) => {
+    const itemID = itemDraft.id
+    const item = draft.items.get(itemID)
+    if (item === undefined) {
+      throw new Error(`Item with ID ${itemID} does not exist`)
+    }
 
-      const oldParentID = item.parentID
-      const newParentID = itemDraft.parentID
+    const oldParentID = item.parentID
+    const newParentID = itemDraft.parentID
 
-      itemDraft.applyToItem(item)
+    itemDraft.applyToItem(item)
 
-      if (newParentID !== oldParentID) {
-        // Remove from old
-        if (oldParentID === undefined) {
-          removeValue(draft.rootItemIDs, itemID)
-        } else {
-          const parent = draft.items.get(oldParentID)
-          if (parent === undefined) {
-            throw new Error(`Parent ID ${oldParentID} does not exist`)
-          }
-          removeValue(parent.childrenIDs, itemID)
-        }
-
-        // Add to new
-        if (newParentID === undefined) {
-          draft.rootItemIDs.push(item.id)
-        } else {
-          const parent = draft.items.get(newParentID)
-          if (parent === undefined) {
-            throw new Error(`Parent ID ${newParentID} does not exist`)
-          }
-          parent.childrenIDs.push(item.id)
-        }
-      }
-    })
-
-  private removeItemReducer = produce(
-    (draft: Draft<DataStoreState>, itemID: ItemID) => {
-      const item = draft.items.get(itemID)
-      if (item === undefined) {
-        throw new Error(`Item with ID ${itemID} does not exist`)
-      }
-      this._removeAllChildrenOf(draft, item)
-      if (item.parentID === undefined) {
+    if (newParentID !== oldParentID || options.anchor !== undefined) {
+      // Remove from old
+      if (oldParentID === undefined) {
         removeValue(draft.rootItemIDs, itemID)
       } else {
-        const parent = draft.items.get(item.parentID)
+        const parent = draft.items.get(oldParentID)
         if (parent === undefined) {
-          throw new Error(`Parent ID ${item.parentID} does not exist`)
+          throw new Error(`Parent ID ${oldParentID} does not exist`)
         }
         removeValue(parent.childrenIDs, itemID)
       }
-      draft.items.delete(itemID)
-    })
+
+      // Add to new
+      if (newParentID === undefined) {
+        insertWithOptions(draft.rootItemIDs, item.id, options)
+      } else {
+        const parent = draft.items.get(newParentID)
+        if (parent === undefined) {
+          throw new Error(`Parent ID ${newParentID} does not exist`)
+        }
+        insertWithOptions(parent.childrenIDs, item.id, options)
+      }
+    }
+  }
+
+  private removeItemReducer = (draft: Draft<DataStoreState>,
+                               itemID: ItemID) => {
+    const item = draft.items.get(itemID)
+    if (item === undefined) {
+      throw new Error(`Item with ID ${itemID} does not exist`)
+    }
+    this._removeAllChildrenOf(draft, item)
+    if (item.parentID === undefined) {
+      removeValue(draft.rootItemIDs, itemID)
+    } else {
+      const parent = draft.items.get(item.parentID)
+      if (parent === undefined) {
+        throw new Error(`Parent ID ${item.parentID} does not exist`)
+      }
+      removeValue(parent.childrenIDs, itemID)
+    }
+    draft.items.delete(itemID)
+  }
+
+  private editSessionReducer = (draft: Draft<DataStoreState>, dayID: DayID,
+                                type: SessionType, itemID: ItemID,
+                                modification: SessionModificationType,
+                                count: number) => {
+    // TODO optimize: remove day data that is equal to default/empty
+
+    const dayData = DayMap.getOrCreate(
+      draft.timelineData, dayID, () => new DayData())
+
+    const sessionsOfType = getOrCreate(
+      dayData.sessions, type,
+      () => new Map<ItemID, number>(),
+    )
+    const existingCount = getOrCreate(sessionsOfType, itemID, () => 0)
+    const newCount = applySessionModification(
+      existingCount, modification, count)
+    if (newCount === 0) {
+      sessionsOfType.delete(itemID)
+    } else {
+      sessionsOfType.set(itemID, newCount)
+    }
+  }
 
   /**
    * NOTE: This method will always return a new array.
@@ -372,7 +518,7 @@ export class DataStore {
     return children
   }
 
-  private _freezeNotifyAndUndo = false
+  private _freezeNotifyAndUndo = 0
 
   maxUndoHistory = 50
 
@@ -418,7 +564,12 @@ export class DataStore {
             Math.random() * 255, Math.random() * 255, Math.random() * 255)
         this.addItem(draft)
       }
+
+      this.addSession(dayIDNow(), SessionType.COMPLETED, 1, 3)
+      this.addSession(dayIDNow(), SessionType.PROJECTED, 2, 4)
+      this.addSession(dayIDNow() + 1, SessionType.SCHEDULED, 3, 6)
     })
+    this.clearUndo()
   }
 
   public get state() {
@@ -427,19 +578,30 @@ export class DataStore {
 
   public addItem(itemDraft: ItemDraft) {
     this.pushUndo()
-    this._state = this.addItemReducer(this._state, itemDraft)
+    this._state =
+      produce(this._state, draft => {
+        this.addItemReducer(draft, itemDraft)
+      })
     this.notify()
   }
 
-  public updateItem(itemDraft: ItemDraft) {
+  public updateItem(itemDraft: ItemDraft, options: UpdateItemOptions = {}) {
     this.pushUndo()
-    this._state = this.updateItemReducer(this._state, itemDraft)
+    this._state = produce(
+      this._state,
+      draft => {
+        this.updateItemReducer(draft, itemDraft, options)
+      },
+    )
     this.notify()
   }
 
   public removeItem(itemID: ItemID) {
     this.pushUndo()
-    this._state = this.removeItemReducer(this._state, itemID)
+    this._state =
+      produce(this._state, draft => {
+        this.removeItemReducer(draft, itemID)
+      })
     this.notify()
   }
 
@@ -447,19 +609,60 @@ export class DataStore {
     return this._state.items.get(itemID)
   }
 
+  public editSession(dayID: DayID, type: SessionType, itemID: ItemID,
+                     modification: SessionModificationType, count: number = 1) {
+    this.pushUndo()
+    this._state = produce(
+      this._state,
+      draft => {
+        this.editSessionReducer(draft, dayID, type, itemID, modification, count)
+      },
+    )
+    this.notify()
+  }
+
+  public addSession(dayID: DayID, type: SessionType, itemID: ItemID,
+                    count: number = 1) {
+    this.editSession(dayID, type, itemID, SessionModificationType.ADD, count)
+  }
+
+  public removeSession(dayID: DayID, type: SessionType, itemID: ItemID,
+                       count: number = 1) {
+    this.editSession(dayID, type, itemID, SessionModificationType.ADD, -count)
+  }
+
+  public setSession(dayID: DayID, type: SessionType, itemID: ItemID,
+                    count: number = 1) {
+    this.editSession(dayID, type, itemID, SessionModificationType.SET, count)
+  }
+
+  public getDayData(dayID: DayID) {
+    return this._state.timelineData.tryGet(dayID) || DataStore.defaultDayData
+  }
+
   /**
    * Execute func without triggering any notification or undo.
    * Once func is returned, subscribers will be notified.
    */
-  public batchEdit(func: () => void) {
-    this._freezeNotifyAndUndo = true
-    func()
-    this._freezeNotifyAndUndo = false
-    this.notify()
+  public batchEdit(func: (DataStore) => void) {
+    if (this._freezeNotifyAndUndo === 0) {
+      this.pushUndo()
+    }
+    this._freezeNotifyAndUndo++
+    func(this)
+    this._freezeNotifyAndUndo--
+    if (this._freezeNotifyAndUndo === 0) {
+      this.notify()
+    }
+  }
+
+  clearUndo() {
+    this.undoHistory = []
+    this.redoHistory = []
   }
 
   private pushUndo() {
-    if (this._freezeNotifyAndUndo) return
+    if (this._freezeNotifyAndUndo > 0) return
 
     // TODO optimize: use a ring
     this.undoHistory.push(this._state)
@@ -474,7 +677,7 @@ export class DataStore {
   }
 
   undo() {
-    if (this._freezeNotifyAndUndo) return
+    if (this._freezeNotifyAndUndo > 0) return
 
     if (this.undoHistory.length > 0) {
       this.redoHistory.push(this._state)
@@ -488,7 +691,7 @@ export class DataStore {
   }
 
   redo() {
-    if (this._freezeNotifyAndUndo) return
+    if (this._freezeNotifyAndUndo > 0) return
 
     if (this.redoHistory.length > 0) {
       this.undoHistory.push(this._state)
@@ -498,7 +701,7 @@ export class DataStore {
   }
 
   private notify() {
-    if (this._freezeNotifyAndUndo) return
+    if (this._freezeNotifyAndUndo > 0) return
 
     this.onChangeSubject.next(this)
   }

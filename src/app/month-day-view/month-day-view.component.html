@@ -1,0 +1,73 @@
+<div class="container">
+  <!--  <div class="background"></div>-->
+  <div class="header" [class.is-today]="isToday"
+       [class.is-past]="isBeforeToday">
+    <p class="date no-pointer-event"
+       [class.is-past]="isBeforeToday"
+       [class.is-today]="isToday"
+       [class.is-start-of-month]="isStartOfMonth">
+      {{getDate() | date:getDateFormat()}}
+    </p>
+    <div class="hfill"></div>
+    <mat-icon class="icon-button" inline (click)="onAddButtonClicked($event)"
+              [matMenuTriggerFor]="addMenu">
+      add
+    </mat-icon>
+    <mat-menu #addMenu="matMenu">
+      <button mat-menu-item (click)="addCompletedSession()">
+        <mat-icon>done</mat-icon>
+        Completed Session
+      </button>
+      <button mat-menu-item (click)="addScheduledSession()">
+        <mat-icon>schedule</mat-icon>
+        Scheduled Session
+      </button>
+    </mat-menu>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-bar-filled"></div>
+  </div>
+  <div class="content">
+    <div *ngFor="let session of sessions" class="session"
+         [style.background-color]="session.color.fade(0.8).string()"
+         [class.container-faded]="session.done"
+         [matMenuTriggerFor]="sessionMenu">
+      <div class="color-block"
+           [style.background-color]="getChipColor(session)"></div>
+      <span class="item-name" [class.faded]="session.done || session.itemDone">
+        <mat-icon *ngIf="session.itemDone" inline
+                  class="item-icon">check_circle</mat-icon>
+        {{session.item.name}}
+      </span>
+      <div class="hfill"></div>
+      <span>{{session.count}}</span>
+      <mat-icon inline class="session-icon">
+        {{getSessionTypeIcon(session.type)}}
+      </mat-icon>
+      <mat-menu #sessionMenu="matMenu">
+        <ng-template matMenuContent>
+          <button *ngIf="!session.done" mat-menu-item
+                  (click)="markSessionComplete(session)">
+            <mat-icon>done</mat-icon>
+            Change to completed
+          </button>
+          <button *ngIf="session.done" mat-menu-item
+                  (click)="markSessionScheduled(session)">
+            <mat-icon>done</mat-icon>
+            Change to scheduled
+          </button>
+          <button *ngIf="!session.isProjected" mat-menu-item
+                  (click)="editSession(session)">
+            <mat-icon>create</mat-icon>
+            Edit
+          </button>
+          <button *ngIf="!session.isProjected" mat-menu-item
+                  (click)="deleteSession(session)">
+            <mat-icon>clear</mat-icon>
+            Delete
+          </button>
+        </ng-template>
+      </mat-menu>
+    </div>
+  </div>
+</div>
