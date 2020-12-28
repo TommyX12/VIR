@@ -8,7 +8,7 @@
     <div class="full-width flex-row">
       <mat-form-field class="flex-child">
         <mat-label>Item</mat-label>
-        <input matInput #itemKeyInput [disabled]="isEditing" name="item"
+        <input matInput #itemKeyInput name="item"
                [(ngModel)]="itemKey"
                [matAutocomplete]="auto"/>
         <mat-autocomplete autoActiveFirstOption #auto="matAutocomplete">
@@ -17,7 +17,7 @@
             {{option}}
           </mat-option>
         </mat-autocomplete>
-        <button type="button" *ngIf="isEditing || itemKey !== ''" matSuffix
+        <button type="button" *ngIf="itemKey !== ''" matSuffix
                 mat-icon-button (click)="itemKey=''">
           <mat-icon>close</mat-icon>
         </button>
@@ -30,7 +30,7 @@
       </mat-form-field>
       <mat-form-field class="flex-child">
         <mat-label>Type</mat-label>
-        <mat-select [(value)]="type" [disabled]="isEditing">
+        <mat-select [(value)]="type">
           <mat-option *ngFor="let option of sessionTypeOptions"
                       [value]="option.type">{{option.displayName}}</mat-option>
         </mat-select>
@@ -39,7 +39,7 @@
   </form>
 </div>
 <div class="footer">
-  <button mat-stroked-button *ngIf="isEditing" (click)="save(0)" color="warn">
+  <button mat-stroked-button *ngIf="isEditing" (click)="delete()" color="warn">
     Delete
   </button>
   <div class="hfill"></div>

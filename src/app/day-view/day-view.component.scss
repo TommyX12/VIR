@@ -9,7 +9,7 @@
 .content {
   width: 100%;
   flex: 1;
-  margin-top: 5px;
+  margin-top: 10px;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -17,17 +17,15 @@
 .color-block {
   width: 5px;
   height: 100%;
-  margin-right: 5px;
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 25px;
-  background-color: #88888822;
-  cursor: pointer;
-  position: relative;
+  height: 35px;
+  background-color: #88888844;
+  padding: 0 5px;
 }
 
 .background {
@@ -38,20 +36,49 @@
   box-sizing: border-box;
 }
 
+.session-group {
+  width: 100%;
+}
+
+.session-group-header {
+  height: 25px;
+  vertical-align: center;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  font-size: 0.8em;
+  font-weight: bold;
+  //background-color: #88888822;
+  //border: 1px solid #88888844;
+  padding: 0 5px;
+  cursor: pointer;
+}
+
+.session-group-header-text {
+  opacity: 0.65;
+}
+
+.right-margin {
+  margin-right: 5px;
+}
+
+.session-group-header:hover {
+  background-color: #88888844;
+}
+
 .session {
-  height: 23px;
-  font-size: 0.7em;
+  height: 32px;
+  font-size: 0.9em;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
   border: 1px solid #88888833;
-  padding-right: 5px;
   cursor: pointer;
 }
 
 .container-faded {
-  opacity: 0.55;
+  opacity: 0.75;
 }
 
 .faded {
@@ -59,7 +86,6 @@
 }
 
 .session-icon {
-  margin-left: 4px;
   vertical-align: center;
   position: relative;
   top: 0.5em;
@@ -83,11 +109,6 @@
 
 .header.is-past {
   background-color: transparent;
-}
-
-.header:hover {
-  outline: 2px solid #55bbeaaa;
-  outline-offset: -2px;
 }
 
 .progress-bar {
@@ -119,23 +140,42 @@
   font-size: 0.9em;
 }
 
-.icon-button {
-  font-size: 25px;
-  cursor: pointer;
-}
-
 .hfill {
   flex: 1;
   pointer-events: none;
+}
+
+.checkbox {
+  color: #309aea;
+  position: relative;
+  bottom: 1px;
+  right: 2px;
+}
+
+.checkbox:hover {
+  color: #55bbea;
+}
+
+.checked {
+  color: #88888899;
+}
+
+.checked:hover {
+  color: #888888;
 }
 
 .no-pointer-event {
   pointer-events: none;
 }
 
-.header-background {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex: 1;
+.session-group-list-container {
+  margin-bottom: 10px;
+}
+
+.left-margin {
+  margin-left: 5px;
+}
+
+.date-picker-input {
+  font-size: 0.75em;
 }

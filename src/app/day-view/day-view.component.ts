@@ -1,6 +1,13 @@
-import {Component, ElementRef, Input, OnInit, ViewChild} from '@angular/core'
+import {
+  Component,
+  ElementRef,
+  Input,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core'
 import {dayIDNow, dayIDToDate} from '../util/time-util'
-import {DataStore, DayData} from '../data/data-store'
+import {DataStore, DataStoreState} from '../data/data-store'
 import {MatDialog} from '@angular/material/dialog'
 import {SessionDetailsComponent} from '../session-details/session-details.component'
 import Color from 'color'
@@ -12,7 +19,8 @@ import {
   SESSION_TYPE_TO_ICON,
   SessionType,
 } from '../data/common'
-import {DayViewDialogComponent} from '../day-view-dialog/day-view-dialog.component'
+import {Subscription} from 'rxjs'
+import {getOrCreate} from '../util/util'
 
 interface Session {
   scheduled: boolean
@@ -25,21 +33,57 @@ interface Session {
   itemDone: boolean
 }
 
+interface SessionGroup {
+  type: SessionType
+  displayName: string
+  expanded: boolean
+  count: number
+}
+
 @Component({
-  selector: 'app-month-day-view',
-  templateUrl: './month-day-view.component.html',
-  styleUrls: ['./month-day-view.component.scss'],
+  selector: 'app-day-view',
+  templateUrl: './day-view.component.html',
+  styleUrls: ['./day-view.component.scss'],
 })
-export class MonthDayViewComponent implements OnInit {
-  @Input() dayID = dayIDNow()
-  @Input() todayDayID = dayIDNow()
-  @Input() forceDisplayMonth = false
+export class DayViewComponent implements OnInit, OnDestroy {
+  private _dayID = dayIDNow()
 
   @ViewChild('background') backgroundRef?: ElementRef
 
-  sessions: Session[] = []
+  sessions = new Map<SessionType, Session[]>()
 
-  private _dayData?: DayData
+  sessionGroups: SessionGroup[] = [
+    {
+      type: SessionType.COMPLETED,
+      displayName: 'Completed',
+      expanded: true,
+      count: 0,
+    },
+    {
+      type: SessionType.SCHEDULED,
+      displayName: 'Scheduled',
+      expanded: true,
+      count: 0,
+    },
+    {
+      type: SessionType.PROJECTED,
+      displayName: 'Projected',
+      expanded: true,
+      count: 0,
+    },
+  ]
+
+  private dataStoreChangeSubscription?: Subscription
+
+  private onDataChanged = (dataStore: DataStore) => {
+    if (dataStore.state === this.lastState) {
+      return
+    }
+    this.lastState = dataStore.state
+    this.refresh()
+  }
+
+  private lastState?: DataStoreState
 
   constructor(
     private readonly dataStore: DataStore,
@@ -47,83 +91,39 @@ export class MonthDayViewComponent implements OnInit {
   ) {
   }
 
-  /**
-   * TODO improve:
-   * Note that this has to be synced up with data store state, otherwise there
-   * will be inconsistencies
-   */
-  @Input() set dayData(value: DayData) {
-    if (value !== this._dayData) {
-      this._dayData = value
-      this.processData(value)
+  get dayID() {
+    return this._dayID
+  }
+
+  @Input() set dayID(value) {
+    if (value === this._dayID) return
+    this._dayID = value
+    this.refresh()
+  }
+
+  ngOnInit(): void {
+    this.subscribeToData()
+  }
+
+  ngOnDestroy() {
+    this.unsubscribeFromData()
+  }
+
+  subscribeToData() {
+    if (this.dataStoreChangeSubscription === undefined) {
+      this.dataStoreChangeSubscription =
+        this.dataStore.onChange.subscribe(this.onDataChanged)
     }
   }
 
-  processData(dayData?: DayData) {
-    dayData = dayData || this._dayData
-    if (dayData === undefined) return
-    this.sessions = []
-    dayData.sessions.forEach((sessions, type) => {
-      sessions.forEach((count, itemID) => {
-        const item = this.dataStore.getItem(itemID)
-        if (item !== undefined) {
-          this.sessions.push({
-            scheduled: type === SessionType.SCHEDULED,
-            projected: type === SessionType.PROJECTED,
-            type,
-            item,
-            count,
-            color: item.color || this.dataStore.getItemColor(item.parentID),
-            done: type === SessionType.COMPLETED,
-            itemDone: item.status === ItemStatus.COMPLETED,
-          })
-        }
-      })
-    })
-
-    this.sessions.sort((a, b) => {
-      if (a.type !== b.type) return a.type - b.type
-      if (a.count !== b.count) return b.count - a.count
-      return a.item.name.localeCompare(b.item.name)
-    })
+  unsubscribeFromData() {
+    this.dataStoreChangeSubscription?.unsubscribe()
+    this.dataStoreChangeSubscription = undefined
   }
 
   getDate() {
     // TODO optimize: cache this evrey time dayID is set
     return dayIDToDate(this.dayID)
-  }
-
-  ngOnInit(): void {
-  }
-
-  get isToday() {
-    return this.todayDayID === this.dayID
-  }
-
-  get isOnOrAfterToday() {
-    return this.dayID >= this.todayDayID
-  }
-
-  get isBeforeToday() {
-    return !this.isOnOrAfterToday
-  }
-
-  getDateFormat() {
-    const date = this.getDate()
-    if (date.getMonth() === 0 && date.getDate() === 1) {
-      return 'yyyy'
-    }
-    if (date.getDate() === 1) {
-      return 'MMM'
-    }
-    if (this.forceDisplayMonth) {
-      return 'MMM dd'
-    }
-    return 'dd'
-  }
-
-  get isStartOfMonth() {
-    return this.getDate().getDate() === 1
   }
 
   onAddButtonClicked(event: MouseEvent) {
@@ -150,22 +150,6 @@ export class MonthDayViewComponent implements OnInit {
       disableClose: false,
       autoFocus: false,
     })
-  }
-
-  openDayView() {
-    const dialogRef = this.dialog.open(DayViewDialogComponent, {
-      width: DayViewDialogComponent.DIALOG_WIDTH,
-      data: {
-        dayID: this.dayID,
-      },
-      hasBackdrop: true,
-      disableClose: false,
-      autoFocus: false,
-    })
-  }
-
-  getSessionTypeIcon(type: SessionType): string {
-    return SESSION_TYPE_TO_ICON[type] || ''
   }
 
   getChipColor(session: Session) {
@@ -236,6 +220,10 @@ export class MonthDayViewComponent implements OnInit {
     }
   }
 
+  getSessionTypeIcon(type: SessionType): string {
+    return SESSION_TYPE_TO_ICON[type] || ''
+  }
+
   onDrop(event: DragEvent) {
     const data = event.dataTransfer?.getData('text')
     if (!data) return
@@ -258,5 +246,58 @@ export class MonthDayViewComponent implements OnInit {
       const itemID = Number(data.substring(7))
       this.dataStore.addSession(this.dayID, SessionType.SCHEDULED, itemID, 1)
     }
+  }
+
+  private refresh() {
+    this.sessions = new Map<SessionType, Session[]>()
+    const dayData = this.dataStore.getDayData(this.dayID)
+    dayData.sessions.forEach((sessions, type) => {
+      sessions.forEach((count, itemID) => {
+        const item = this.dataStore.getItem(itemID)
+        if (item !== undefined) {
+          getOrCreate(this.sessions, type, () => []).push({
+            scheduled: type === SessionType.SCHEDULED,
+            projected: type === SessionType.PROJECTED,
+            type,
+            item,
+            count,
+            color: item.color || this.dataStore.getItemColor(item.parentID),
+            done: type === SessionType.COMPLETED,
+            itemDone: item.status === ItemStatus.COMPLETED,
+          })
+        }
+      })
+    })
+
+    this.sessions.forEach(sessions => {
+      sessions.sort((a, b) => {
+        if (a.count !== b.count) return b.count - a.count
+        return a.item.name.localeCompare(b.item.name)
+      })
+    })
+
+    this.sessionGroups.forEach(group => {
+      group.count = 0
+      this.getSessions(group.type).forEach(session => {
+        group.count += session.count
+      })
+    })
+  }
+
+  toggleItemDone(session: Session) {
+    const draft = this.dataStore.getItem(session.item.id)!.toDraft()
+    draft.status = session.itemDone ? ItemStatus.ACTIVE : ItemStatus.COMPLETED
+    this.dataStore.updateItem(draft)
+  }
+
+  getSessions(type: SessionType): Session[] {
+    return this.sessions.get(type) || []
+  }
+
+  completeOne(session: Session) {
+    this.dataStore.batchEdit(it => {
+      it.removeSession(this.dayID, session.type, session.item.id, 1)
+      it.addSession(this.dayID, SessionType.COMPLETED, session.item.id, 1)
+    })
   }
 }

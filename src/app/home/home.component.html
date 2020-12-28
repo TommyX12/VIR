@@ -21,7 +21,37 @@
   </mat-toolbar>
   <mat-sidenav-container class="content-container">
     <mat-sidenav mode="side" opened class="side-bar">
-      Sidenav placeholder content and stuff
+      <div class="side-bar-content">
+        <div class="side-bar-header">
+          <button mat-stroked-button
+                  (click)="sideBarGoToToday()">
+            Today
+          </button>
+          <button mat-icon-button
+                  (click)="changeSideBarDate(-1)"
+                  matTooltipPosition="above"
+                  matTooltip="Previous Day">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <button mat-icon-button
+                  (click)="changeSideBarDate(1)"
+                  matTooltipPosition="above"
+                  matTooltip="Next Day">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+          <mat-form-field class="flex-child date-picker">
+            <input matInput [matDatepicker]="datePicker" disabled
+                   [value]="getSideBarDate()"
+                   class="date-picker-input"
+                   (dateChange)="onSideBarDateChanged($event)">
+            <mat-datepicker-toggle matSuffix [disabled]="false"
+                                   [for]="datePicker"></mat-datepicker-toggle>
+            <mat-datepicker #datePicker [disabled]="false"></mat-datepicker>
+          </mat-form-field>
+        </div>
+        <app-day-view class="flex-child full-width" [dayID]="sideBarDayID">
+        </app-day-view>
+      </div>
     </mat-sidenav>
     <mat-sidenav-content>
       <mat-tab-group color="accent" animationDuration="0ms" class="tab-group"

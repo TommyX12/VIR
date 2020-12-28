@@ -1,0 +1,103 @@
+<div class="container" appDroptarget [onDragReact]="onDragReact"
+     [clearDragReact]="clearDragReact" (drop)="onDrop($event)">
+  <div #background class="background"></div>
+  <div class="header">
+    <p class="date no-pointer-event">
+      {{getDate() | date:'fullDate'}}
+    </p>
+    <div class="hfill"></div>
+    <button mat-icon-button (click)="onAddButtonClicked($event)"
+            [matMenuTriggerFor]="addMenu">
+      <mat-icon>add</mat-icon>
+    </button>
+    <mat-menu #addMenu="matMenu">
+      <button mat-menu-item (click)="addCompletedSession()">
+        <mat-icon>done</mat-icon>
+        Completed Session
+      </button>
+      <button mat-menu-item (click)="addScheduledSession()">
+        <mat-icon>schedule</mat-icon>
+        Scheduled Session
+      </button>
+    </mat-menu>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-bar-filled"></div>
+  </div>
+  <div class="content">
+    <div *ngFor="let sessionGroup of sessionGroups" class="session-group">
+      <div class="session-group-header"
+           (click)="sessionGroup.expanded = !sessionGroup.expanded">
+        <mat-icon class="mat-icon-rtl-mirror right-margin">
+          {{sessionGroup.expanded ? 'expand_more' : 'chevron_right'}}
+        </mat-icon>
+        <mat-icon inline class="session-icon right-margin">
+          {{getSessionTypeIcon(sessionGroup.type)}}
+        </mat-icon>
+        <span class="session-group-header-text">
+          {{sessionGroup.displayName}}
+        </span>
+        <div class="hfill"></div>
+        <span>
+          {{sessionGroup.count}}
+        </span>
+      </div>
+      <div *ngIf="sessionGroup.expanded" class="session-group-list-container">
+        <div *ngFor="let session of getSessions(sessionGroup.type)"
+             class="session"
+             [style.background-color]="session.color.fade(0.8).string()"
+             [class.container-faded]="session.done"
+             [matMenuTriggerFor]="sessionMenu"
+             [draggable]="!session.projected"
+             (dragstart)="onSessionDragStart($event, session)">
+          <div class="color-block right-margin"
+               [style.background-color]="getChipColor(session)"></div>
+          <button mat-icon-button
+                  matTooltip="Complete Item"
+                  matTooltipPosition="above"
+                  *ngIf="session.done"
+                  (click)="toggleItemDone(session) && $event.preventDefault()">
+            <mat-icon class="checkbox" [class.checked]="session.itemDone">
+              {{session.itemDone ? 'check_circle' : 'radio_button_unchecked'}}
+            </mat-icon>
+          </button>
+          <span class="left-margin right-margin app-single-line-text"
+                [class.faded]="session.done || session.itemDone">
+            {{session.item.name}}
+          </span>
+          <div class="hfill"></div>
+          <span class="right-margin">{{session.count}}</span>
+          <button mat-icon-button matTooltip="Complete One"
+                  matTooltipPosition="above" *ngIf="!session.done"
+                  (click)="completeOne(session)">
+            <mat-icon>done</mat-icon>
+          </button>
+          <mat-menu #sessionMenu="matMenu">
+            <ng-template matMenuContent>
+              <button *ngIf="!session.done" mat-menu-item
+                      (click)="markSessionComplete(session)">
+                <mat-icon>done</mat-icon>
+                Change to completed
+              </button>
+              <button *ngIf="!session.scheduled" mat-menu-item
+                      (click)="markSessionScheduled(session)">
+                <mat-icon>done</mat-icon>
+                Change to scheduled
+              </button>
+              <button *ngIf="!session.projected" mat-menu-item
+                      (click)="editSession(session)">
+                <mat-icon>create</mat-icon>
+                Edit
+              </button>
+              <button *ngIf="!session.projected" mat-menu-item
+                      (click)="deleteSession(session)">
+                <mat-icon>clear</mat-icon>
+                Delete
+              </button>
+            </ng-template>
+          </mat-menu>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

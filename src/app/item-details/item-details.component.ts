@@ -6,15 +6,9 @@ import {
   ViewChild,
 } from '@angular/core'
 import {MAT_DIALOG_DATA, MatDialogRef} from '@angular/material/dialog'
-import {
-  DataStore,
-  DataStoreAutoCompleter,
-  Item,
-  ItemDraft,
-  ItemStatus,
-} from '../data/data-store'
+import {DataStore, DataStoreAutoCompleter} from '../data/data-store'
 import Color from 'color'
-import {ItemID} from '../data/common'
+import {Item, ItemDraft, ItemID, ItemStatus} from '../data/common'
 import {BehaviorSubject} from 'rxjs'
 import {FormControl} from '@angular/forms'
 

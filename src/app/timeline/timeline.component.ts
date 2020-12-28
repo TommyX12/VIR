@@ -1,6 +1,7 @@
 import {
   ChangeDetectorRef,
   Component,
+  NgZone,
   OnDestroy,
   OnInit,
   QueryList,
@@ -33,6 +34,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   private dataStoreChangeSubscription?: Subscription
 
+  private updateIntervalID?: any
+
   dowDates = (() => {
     const result: Date[] = []
     const start = startOfWeek(new Date())
@@ -55,6 +58,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   constructor(
     private readonly dataStore: DataStore,
     private readonly changeDetectorRef: ChangeDetectorRef,
+    private readonly zone: NgZone,
   ) {
     this.viewRange = 'month' // Ensure row is updated
   }
@@ -74,10 +78,25 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.subscribeToData()
+
+    this.zone.runOutsideAngular(() => {
+      this.updateIntervalID = setInterval(() => {
+        const newTodayDayID = dayIDNow(this.dayStartOffsetMinutes)
+        if (this.todayDayID !== newTodayDayID) {
+          this.todayDayID = newTodayDayID
+          this.changeDetectorRef.detectChanges()
+        }
+      }, 60000) // Update every minute
+    })
   }
 
   ngOnDestroy() {
     this.unsubscribeFromData()
+
+    if (this.updateIntervalID !== undefined) {
+      clearInterval(this.updateIntervalID)
+      this.updateIntervalID = undefined
+    }
   }
 
   subscribeToData() {

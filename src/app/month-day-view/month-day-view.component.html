@@ -1,14 +1,16 @@
-<div class="container">
-  <!--  <div class="background"></div>-->
+<div class="container" appDroptarget [onDragReact]="onDragReact"
+     [clearDragReact]="clearDragReact" (drop)="onDrop($event)">
+  <div #background class="background"></div>
   <div class="header" [class.is-today]="isToday"
        [class.is-past]="isBeforeToday">
-    <p class="date no-pointer-event"
-       [class.is-past]="isBeforeToday"
-       [class.is-today]="isToday"
-       [class.is-start-of-month]="isStartOfMonth">
-      {{getDate() | date:getDateFormat()}}
-    </p>
-    <div class="hfill"></div>
+    <div class="header-background" (click)="openDayView()">
+      <p class="date no-pointer-event app-single-line-text"
+         [class.is-past]="isBeforeToday"
+         [class.is-today]="isToday"
+         [class.is-start-of-month]="isStartOfMonth">
+        {{getDate() | date:getDateFormat()}}
+      </p>
+    </div>
     <mat-icon class="icon-button" inline (click)="onAddButtonClicked($event)"
               [matMenuTriggerFor]="addMenu">
       add
@@ -31,12 +33,16 @@
     <div *ngFor="let session of sessions" class="session"
          [style.background-color]="session.color.fade(0.8).string()"
          [class.container-faded]="session.done"
-         [matMenuTriggerFor]="sessionMenu">
+         [matMenuTriggerFor]="sessionMenu"
+         [draggable]="!session.projected"
+         (dragstart)="onSessionDragStart($event, session)">
       <div class="color-block"
            [style.background-color]="getChipColor(session)"></div>
-      <span class="item-name" [class.faded]="session.done || session.itemDone">
-        <mat-icon *ngIf="session.itemDone" inline
-                  class="item-icon">check_circle</mat-icon>
+      <mat-icon *ngIf="session.itemDone" inline
+                class="item-icon">check_circle
+      </mat-icon>
+      <span class="app-single-line-text"
+            [class.faded]="session.done || session.itemDone">
         {{session.item.name}}
       </span>
       <div class="hfill"></div>
@@ -51,17 +57,17 @@
             <mat-icon>done</mat-icon>
             Change to completed
           </button>
-          <button *ngIf="session.done" mat-menu-item
+          <button *ngIf="!session.scheduled" mat-menu-item
                   (click)="markSessionScheduled(session)">
             <mat-icon>done</mat-icon>
             Change to scheduled
           </button>
-          <button *ngIf="!session.isProjected" mat-menu-item
+          <button *ngIf="!session.projected" mat-menu-item
                   (click)="editSession(session)">
             <mat-icon>create</mat-icon>
             Edit
           </button>
-          <button *ngIf="!session.isProjected" mat-menu-item
+          <button *ngIf="!session.projected" mat-menu-item
                   (click)="deleteSession(session)">
             <mat-icon>clear</mat-icon>
             Delete

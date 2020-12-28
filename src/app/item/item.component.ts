@@ -1,20 +1,17 @@
 import {
-  AfterViewInit,
   Component,
   ElementRef,
   EventEmitter,
   Input,
   NgZone,
-  OnDestroy,
   OnInit,
   Output,
   ViewChild,
 } from '@angular/core'
 import {ItemNode} from '../items/items.component'
-import {DataStore, ItemStatus} from '../data/data-store'
-import {ItemID} from '../data/common'
+import {DataStore} from '../data/data-store'
+import {ItemID, ItemStatus} from '../data/common'
 
-const DRAG_REACTION_DELAY = 100
 const DROP_THRESHOLDS = [0.4, 0.666]
 
 export enum ItemDroppedInsertionType {
@@ -34,8 +31,7 @@ export interface ItemDroppedEvent {
   templateUrl: './item.component.html',
   styleUrls: ['./item.component.scss'],
 })
-export class ItemComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('container') containerRef?: ElementRef
+export class ItemComponent implements OnInit {
   @ViewChild('decorationContainer') decorationContainerRef?: ElementRef
 
   // @ts-ignore
@@ -49,31 +45,6 @@ export class ItemComponent implements OnInit, AfterViewInit, OnDestroy {
   @Output() bodyClicked = new EventEmitter()
   @Output() itemDropped = new EventEmitter<ItemDroppedEvent>()
 
-  private dragReactionDelayHandle?: any
-
-  private onDragEnter = (event: DragEvent) => {
-    event.preventDefault()
-  }
-
-  private onDragOver = (event: DragEvent) => {
-    event.preventDefault()
-
-    if (this.dragReactionDelayHandle !== undefined) return
-
-    this.dragReactionDelayHandle = setTimeout(() => {
-      this.onDragReact(event)
-      this.dragReactionDelayHandle = undefined
-    }, DRAG_REACTION_DELAY)
-  }
-
-  private onDragLeave = (event: DragEvent) => {
-    if (this.dragReactionDelayHandle !== undefined) {
-      clearTimeout(this.dragReactionDelayHandle)
-      this.dragReactionDelayHandle = undefined
-    }
-    this.clearDragReact()
-  }
-
   constructor(
     private readonly dataStore: DataStore,
     private readonly zone: NgZone,
@@ -81,26 +52,6 @@ export class ItemComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
-  }
-
-  ngAfterViewInit() {
-    this.zone.runOutsideAngular(() => {
-      this.containerRef?.nativeElement?.addEventListener(
-        'dragenter', this.onDragEnter)
-      this.containerRef?.nativeElement?.addEventListener(
-        'dragover', this.onDragOver)
-      this.containerRef?.nativeElement?.addEventListener(
-        'dragleave', this.onDragLeave)
-    })
-  }
-
-  ngOnDestroy() {
-    this.containerRef?.nativeElement?.removeEventListener(
-      'dragenter', this.onDragEnter)
-    this.containerRef?.nativeElement?.removeEventListener(
-      'dragover', this.onDragOver)
-    this.containerRef?.nativeElement?.removeEventListener(
-      'dragleave', this.onDragLeave)
   }
 
   onBodyClicked() {
@@ -126,12 +77,6 @@ export class ItemComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onDrop(event: DragEvent) {
-    if (this.dragReactionDelayHandle !== undefined) {
-      clearTimeout(this.dragReactionDelayHandle)
-      this.dragReactionDelayHandle = undefined
-    }
-    this.clearDragReact()
-
     const data = event.dataTransfer?.getData('text')
     if (!data || !data.startsWith('itemID ')) return
 
@@ -158,7 +103,7 @@ export class ItemComponent implements OnInit, AfterViewInit, OnDestroy {
     })
   }
 
-  onDragReact(event: DragEvent) {
+  onDragReact = (event: DragEvent) => {
     // @ts-ignore
     const rect = event.target.getBoundingClientRect()
     const x = event.clientX - rect.left
@@ -179,7 +124,7 @@ export class ItemComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  clearDragReact() {
+  clearDragReact = () => {
     const element = this.decorationContainerRef?.nativeElement
     if (element) {
       element.style.borderTop = ''

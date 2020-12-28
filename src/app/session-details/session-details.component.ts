@@ -7,13 +7,9 @@ import {
   ViewChild,
 } from '@angular/core'
 import {MAT_DIALOG_DATA, MatDialogRef} from '@angular/material/dialog'
-import {
-  DataStore,
-  DataStoreAutoCompleter,
-  SessionType,
-} from '../data/data-store'
+import {DataStore, DataStoreAutoCompleter} from '../data/data-store'
 import {BehaviorSubject} from 'rxjs'
-import {DayID, ItemID} from '../data/common'
+import {DayID, ItemID, SessionType} from '../data/common'
 
 export interface SessionDetailsConfig {
   isEditing?: boolean
@@ -57,7 +53,10 @@ export class SessionDetailsComponent implements OnInit, AfterViewInit {
 
   isEditing: boolean
 
-  editingItemID?: number
+  originalItemID?: number
+  originalItemKey?: string
+  originalType?: SessionType
+  originalCount?: number
 
   constructor(
     public dialogRef: MatDialogRef<SessionDetailsComponent>,
@@ -70,9 +69,19 @@ export class SessionDetailsComponent implements OnInit, AfterViewInit {
     this.isEditing = !!data.isEditing
 
     this.autoCompleter = dataStore.getAutoCompleter()
-    if (data.itemID !== undefined) {
-      this._itemKey = this.autoCompleter.idToKey(data.itemID) || ''
-      this.editingItemID = data.itemID
+    if (this.isEditing) {
+      if (data.itemID === undefined) {
+        throw new Error('Item ID not given when isEditing is true')
+      }
+      this.originalItemID = data.itemID
+      this.originalItemKey =
+        this.autoCompleter.idToKey(this.originalItemID)
+      if (this.originalItemKey === undefined) {
+        throw new Error('Item key not found')
+      }
+      this._itemKey = this.originalItemKey
+      this.originalType = data.type
+      this.originalCount = data.count
     }
   }
 
@@ -104,31 +113,37 @@ export class SessionDetailsComponent implements OnInit, AfterViewInit {
     this.dialogRef.close()
   }
 
-  save(count?: number) {
-    if (count === undefined) count = this.count
-
+  save() {
     // Validation
     // TODO refactor: move this
     if (!this.itemKey) {
       this.errorInvalidItemKey()
       return
     }
-    const itemID = this.isEditing ? this.editingItemID :
-      this.autoCompleter.keyToID(this.itemKey)
+    const itemID = (this.originalItemKey !== undefined &&
+      this.itemKey === this.originalItemKey) ?
+      this.originalItemID :
+      this.autoCompleter.keyToID(this._itemKey)
     if (itemID === undefined) {
       this.errorItemNotFound()
       return
     }
-    if (count < 0) {
+    if (this.count < 0) {
       this.errorInvalidCount()
       return
     }
 
     // Finalize
     if (this.isEditing) {
-      this.dataStore.setSession(this.dayID, this.type, itemID, count)
+      this.dataStore.batchEdit((it) => {
+        it.removeSession(
+          this.dayID, this.originalType!, this.originalItemID!,
+          this.originalCount!,
+        )
+        it.addSession(this.dayID, this.type, itemID, this.count)
+      })
     } else {
-      this.dataStore.addSession(this.dayID, this.type, itemID, count)
+      this.dataStore.addSession(this.dayID, this.type, itemID, this.count)
     }
     this.close()
   }
@@ -158,5 +173,14 @@ export class SessionDetailsComponent implements OnInit, AfterViewInit {
 
   private errorItemNotFound() {
     alert('Error: Item not found')
+  }
+
+  delete() {
+    if (this.originalType === undefined || this.originalItemID === undefined) {
+      throw new Error('Trying to delete but nothing is being edited')
+    }
+    this.dataStore.removeSession(
+      this.dayID, this.originalType, this.originalItemID, this.originalCount!)
+    this.close()
   }
 }

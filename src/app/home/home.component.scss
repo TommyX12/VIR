@@ -20,6 +20,46 @@
   width: 300px;
 }
 
+.side-bar-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.side-bar-header {
+  width: 100%;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+
+.right-margin {
+  margin-right: 5px;
+}
+
+.hfill {
+  flex: 1;
+}
+
+.flex-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.date-picker {
+  width: 100px;
+}
+
+.full-width {
+  width: 100%;
+}
+
 .tab-group {
   height: 100%;
 }

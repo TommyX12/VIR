@@ -1,5 +1,7 @@
 <div class="item-content"
-     #container
+     appDroptarget
+     [onDragReact]="onDragReact"
+     [clearDragReact]="clearDragReact"
      (drop)="onDrop($event)"
      [style.background-color]="node.color.fade(0.8).string()"
      [class.container-faded]="done">
@@ -17,7 +19,7 @@
     <div class="item-body"
          [class.is-indirect]="node.isIndirect && !done"
          [class.faded]="done">
-      <span class="item-name">
+      <span class="item-name app-single-line-text">
         {{node.name}}
       </span>
       <span>{{node.cost}}</span>

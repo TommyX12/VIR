@@ -11,6 +11,8 @@ import {DataStore} from '../data/data-store'
 import {ItemsComponent} from '../items/items.component'
 import {MatTabChangeEvent} from '@angular/material/tabs'
 import {TimelineComponent} from '../timeline/timeline.component'
+import {dateToDayID, dayIDNow, dayIDToDate} from '../util/time-util'
+import {MatDatepickerInputEvent} from '@angular/material/datepicker'
 
 const THEME_DARKNESS_SUFFIX = `-dark`
 const DEFAULT_THEME_NAME = 'main'
@@ -47,6 +49,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
   private _enableDarkMode = DEFAULT_DARKNESS
   public selectedTabIndex = 0
   public activatedTabIndex = -1
+
+  sideBarDayID = dayIDNow()
 
   constructor(private router: Router,
               private overlayContainer: OverlayContainer,
@@ -117,5 +121,23 @@ export class HomeComponent implements OnInit, AfterViewInit {
     }
     this.activatedTabIndex = index
     this.activateTab(index)
+  }
+
+  getSideBarDate() {
+    return dayIDToDate(this.sideBarDayID)
+  }
+
+  changeSideBarDate(delta: number) {
+    this.sideBarDayID += delta
+  }
+
+  onSideBarDateChanged(event: MatDatepickerInputEvent<Date, Date | null>) {
+    const date = event.value
+    if (!date) return
+    this.sideBarDayID = dateToDayID(date)
+  }
+
+  sideBarGoToToday() {
+    this.sideBarDayID = dayIDNow()
   }
 }

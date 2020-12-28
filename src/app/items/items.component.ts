@@ -15,13 +15,11 @@ import {
   DataStore,
   DataStoreAutoCompleter,
   DataStoreState,
-  Item,
-  ItemStatus,
 } from '../data/data-store'
 import {BehaviorSubject, Subscription} from 'rxjs'
 import {MatDialog} from '@angular/material/dialog'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
-import {ItemID} from '../data/common'
+import {Item, ItemID, ItemStatus} from '../data/common'
 import {debounceTime} from 'rxjs/operators'
 import {CdkVirtualScrollViewport} from '@angular/cdk/scrolling'
 import {

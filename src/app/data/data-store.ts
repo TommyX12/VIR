@@ -2,7 +2,7 @@ import Color from 'color'
 import convert from 'color-convert'
 import produce, {Draft, immerable} from 'immer'
 import {getOrCreate, random, removeValue} from '../util/util'
-import {DayID, ItemID} from './common'
+import {DayID, Item, ItemDraft, ItemID, ItemStatus, SessionType} from './common'
 import {Injectable} from '@angular/core'
 import {BehaviorSubject} from 'rxjs'
 import {dayIDNow} from '../util/time-util'
@@ -24,81 +24,6 @@ function applySessionModification(existingCount: number,
     result = existingCount
   }
   return Math.max(0, result)
-}
-
-export enum ItemStatus {
-  ACTIVE,
-  COMPLETED,
-}
-
-export enum SessionType {
-  COMPLETED,
-  SCHEDULED,
-  PROJECTED,
-}
-
-export class Item {
-  [immerable] = true
-
-  constructor(
-    public readonly id: ItemID,
-    public readonly name: string = '',
-    public readonly status: ItemStatus = ItemStatus.ACTIVE,
-    public readonly cost: number = 1,
-    public readonly priority: number = 0,
-    public readonly childrenIDs: ItemID[] = [],
-    public readonly color?: Color,
-    public readonly parentID?: ItemID,
-  ) {
-  }
-
-  toDraft() {
-    return new ItemDraft(
-      this.id,
-      this.name,
-      this.status,
-      this.cost,
-      this.priority,
-      this.color,
-      this.parentID,
-    )
-  }
-}
-
-export class ItemDraft {
-
-  constructor(
-    public id: ItemID = -1,
-    public name: string = '',
-    public status: ItemStatus = ItemStatus.ACTIVE,
-    public cost: number = 1,
-    public priority: number = 0,
-    public color?: Color,
-    public parentID?: ItemID,
-  ) {
-  }
-
-  toNewItem(id: ItemID) {
-    return new Item(
-      id,
-      this.name,
-      this.status,
-      this.cost,
-      this.priority,
-      [],
-      this.color,
-      this.parentID,
-    )
-  }
-
-  applyToItem(item: Draft<Item>) {
-    item.name = this.name
-    item.status = this.status
-    item.cost = this.cost
-    item.priority = this.priority
-    item.color = this.color
-    item.parentID = this.parentID
-  }
 }
 
 export class DayMap<T> {
@@ -189,6 +114,12 @@ export class DayMap<T> {
       // @ts-ignore
       draft.partitions.delete(partitionID)
     }
+  }
+
+  forEach(func: (item: T, dayID: DayID) => void) {
+    this.partitions.forEach(partition => {
+      partition.forEach(func)
+    })
   }
 }
 
@@ -476,6 +407,7 @@ export class DataStore {
       removeValue(parent.childrenIDs, itemID)
     }
     draft.items.delete(itemID)
+    this.invalidateItemID(draft, itemID)
   }
 
   private editSessionReducer = (draft: Draft<DataStoreState>, dayID: DayID,
@@ -609,8 +541,9 @@ export class DataStore {
     return this._state.items.get(itemID)
   }
 
-  public editSession(dayID: DayID, type: SessionType, itemID: ItemID,
-                     modification: SessionModificationType, count: number = 1) {
+  private editSession(dayID: DayID, type: SessionType, itemID: ItemID,
+                      modification: SessionModificationType,
+                      count: number = 1) {
     this.pushUndo()
     this._state = produce(
       this._state,
@@ -631,8 +564,8 @@ export class DataStore {
     this.editSession(dayID, type, itemID, SessionModificationType.ADD, -count)
   }
 
-  public setSession(dayID: DayID, type: SessionType, itemID: ItemID,
-                    count: number = 1) {
+  private setSession(dayID: DayID, type: SessionType, itemID: ItemID,
+                     count: number = 1) {
     this.editSession(dayID, type, itemID, SessionModificationType.SET, count)
   }
 
@@ -644,7 +577,7 @@ export class DataStore {
    * Execute func without triggering any notification or undo.
    * Once func is returned, subscribers will be notified.
    */
-  public batchEdit(func: (DataStore) => void) {
+  public batchEdit(func: (dataStore: DataStore) => void) {
     if (this._freezeNotifyAndUndo === 0) {
       this.pushUndo()
     }
@@ -717,8 +650,26 @@ export class DataStore {
       }
       this._removeAllChildrenOf(draft, child)
       draft.items.delete(childID)
+      this.invalidateItemID(draft, childID)
     }
     item.childrenIDs = []
+  }
+
+  /**
+   * NOTE: This function searches for itemID references (e.g. sessions) using
+   * the current state, not the given draft.
+   * Keep this in mind before chaining reducers on drafts.
+   */
+  private invalidateItemID(draft: Draft<DataStoreState>, itemID: ItemID) {
+    this._state.timelineData.forEach((dayData, dayID) => {
+      dayData.sessions.forEach((sessions, type) => {
+        sessions.forEach((count, sessionItemID) => {
+          if (sessionItemID === itemID) {
+            draft.timelineData.tryGet(dayID)!.sessions.get(type)!.delete(itemID)
+          }
+        })
+      })
+    })
   }
 
   getItemColor(itemID: ItemID | undefined): Color {

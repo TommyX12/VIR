@@ -16,6 +16,10 @@ import {MatToolbarModule} from '@angular/material/toolbar'
 import {MatSlideToggleModule} from '@angular/material/slide-toggle'
 import {MatTooltipModule} from '@angular/material/tooltip'
 import {TimelineModule} from '../timeline/timeline.module'
+import {DayViewModule} from '../day-view/day-view.module'
+import {MatFormFieldModule} from '@angular/material/form-field'
+import {MatDatepickerModule} from '@angular/material/datepicker'
+import {MatInputModule} from '@angular/material/input'
 
 @NgModule({
   declarations: [HomeComponent],
@@ -23,7 +27,8 @@ import {TimelineModule} from '../timeline/timeline.module'
     CommonModule, SharedModule, HomeRoutingModule, MatButtonModule,
     MatToolbarModule, MatIconModule, MatSlideToggleModule, MatSidenavModule,
     MatTabsModule, ItemsModule,
-    MatTooltipModule, TimelineModule,
+    MatTooltipModule, TimelineModule, DayViewModule, MatFormFieldModule,
+    MatDatepickerModule, MatInputModule,
   ],
 })
 export class HomeModule {
