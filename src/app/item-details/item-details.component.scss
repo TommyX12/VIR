@@ -33,7 +33,7 @@
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   vertical-align: middle;
 }
 
@@ -69,6 +69,7 @@
 
 .flex-child {
   flex: 1;
+  min-width: 0;
 }
 
 .id-text {
@@ -84,4 +85,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.repeat-interval-input {
+  text-align: right;
+}
+
+.repeat-type-select {
+  width: 80px;
+}
+
+.repeat-interval-field {
+  min-width: 0;
+  width: 80px;
+}
+
+.bottom-margin {
+  margin-bottom: 10px;
 }

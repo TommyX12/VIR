@@ -1,6 +1,7 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
     "strictNullChecks": true,
     "strictPropertyInitialization": true,
     "skipDefaultLibCheck": true,

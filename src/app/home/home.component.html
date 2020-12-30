@@ -49,7 +49,8 @@
             <mat-datepicker #datePicker [disabled]="false"></mat-datepicker>
           </mat-form-field>
         </div>
-        <app-day-view class="flex-child full-width" [dayID]="sideBarDayID">
+        <app-day-view class="flex-child full-width" [dayID]="sideBarDayID"
+                      [home]="home">
         </app-day-view>
       </div>
     </mat-sidenav>

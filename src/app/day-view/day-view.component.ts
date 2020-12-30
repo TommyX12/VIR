@@ -21,6 +21,7 @@ import {
 } from '../data/common'
 import {Subscription} from 'rxjs'
 import {getOrCreate} from '../util/util'
+import {HomeComponent} from '../home/home.component'
 
 interface Session {
   scheduled: boolean
@@ -47,6 +48,8 @@ interface SessionGroup {
 })
 export class DayViewComponent implements OnInit, OnDestroy {
   private _dayID = dayIDNow()
+
+  @Input() home?: HomeComponent
 
   @ViewChild('background') backgroundRef?: ElementRef
 
@@ -299,5 +302,9 @@ export class DayViewComponent implements OnInit, OnDestroy {
       it.removeSession(this.dayID, session.type, session.item.id, 1)
       it.addSession(this.dayID, SessionType.COMPLETED, session.item.id, 1)
     })
+  }
+
+  showInItems(session: Session) {
+    this.home?.showInItems(session.item.id)
   }
 }

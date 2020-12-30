@@ -8,9 +8,23 @@ import {
 import {MAT_DIALOG_DATA, MatDialogRef} from '@angular/material/dialog'
 import {DataStore, DataStoreAutoCompleter} from '../data/data-store'
 import Color from 'color'
-import {Item, ItemDraft, ItemID, ItemStatus} from '../data/common'
+import {
+  Item,
+  ItemDraft,
+  ItemID,
+  ItemStatus,
+  repeatTypeFactoriesByID,
+} from '../data/common'
 import {BehaviorSubject} from 'rxjs'
-import {FormControl} from '@angular/forms'
+import {MatDatepickerInputEvent} from '@angular/material/datepicker'
+import {
+  dateAddDay,
+  dateToDayID,
+  dayIDNow,
+  dayIDToDate,
+  parseSpecialDate,
+  startOfWeek,
+} from '../util/time-util'
 
 export interface ItemDetailsConfig {
   item?: Item
@@ -25,6 +39,34 @@ export interface ItemDetailsConfig {
    */
   initialParent?: ItemID
 }
+
+const REPEAT_TYPE_OPTIONS = [
+  {
+    type: 'day',
+    displayName: 'Day',
+  },
+  {
+    type: 'week',
+    displayName: 'Week',
+  },
+  {
+    type: 'month',
+    displayName: 'Month',
+  },
+  {
+    type: 'year',
+    displayName: 'Year',
+  },
+]
+
+const REPEAT_DAY_OF_WEEK_OPTIONS = (() => {
+  const result: { value: number, dowDate: Date }[] = []
+  const start = startOfWeek(new Date())
+  for (let i = 0; i < 7; ++i) {
+    result.push({value: i, dowDate: dateAddDay(start, i)})
+  }
+  return result
+})()
 
 @Component({
   selector: 'app-item-details',
@@ -46,7 +88,12 @@ export class ItemDetailsComponent implements AfterViewInit {
   private _parentItemKey: string = ''
   filteredParentKeys = new BehaviorSubject<string[]>([])
 
-  formControl = new FormControl()
+  deferDate: Date | null = null
+  dueDate: Date | null = null
+  repeatTypeOptions = REPEAT_TYPE_OPTIONS
+  repeatDayOfWeekOptions = REPEAT_DAY_OF_WEEK_OPTIONS
+
+  repeatDayOfWeek: any
 
   constructor(
     public dialogRef: MatDialogRef<ItemDetailsComponent>,
@@ -73,6 +120,11 @@ export class ItemDetailsComponent implements AfterViewInit {
       }
       this._parentItemKey = this.originalParentItemKey
     }
+
+    // Setting up dates
+    this.deferDate =
+      this.draft.deferDate ? dayIDToDate(this.draft.deferDate) : null
+    this.dueDate = this.draft.dueDate ? dayIDToDate(this.draft.dueDate) : null
   }
 
   get colorString() {
@@ -144,6 +196,50 @@ export class ItemDetailsComponent implements AfterViewInit {
     this.filteredParentKeys.next(this.autoCompleter.queryKeys(value, 10))
   }
 
+  get repeatEnabled() {
+    return this.draft.repeat !== undefined
+  }
+
+  set repeatEnabled(value: boolean) {
+    if (value) {
+      if (this.draft.repeat === undefined) {
+        this.draft.repeat =
+          repeatTypeFactoriesByID.get(REPEAT_TYPE_OPTIONS[0].type)?.create()
+      }
+    } else {
+      this.draft.repeat = undefined
+    }
+  }
+
+  get repeatType() {
+    const repeatType = this.draft.repeat
+    if (repeatType === undefined) return undefined
+    return repeatType.id
+  }
+
+  set repeatType(value: string | undefined) {
+    if (value === undefined) {
+      this.draft.repeat = undefined
+    } else {
+      if (this.draft.repeat === undefined || this.draft.repeat.id !== value) {
+        this.draft.repeat =
+          repeatTypeFactoriesByID.get(value)?.create()
+      }
+    }
+  }
+
+  get repeatIntervalString() {
+    return this.draft.repeatInterval.toString()
+  }
+
+  set repeatIntervalString(value: string) {
+    let v = Number(value)
+    if (isNaN(v) || v <= 0) {
+      v = 1
+    }
+    this.draft.repeatInterval = v
+  }
+
   close(): void {
     this.dialogRef.close()
   }
@@ -186,6 +282,10 @@ export class ItemDetailsComponent implements AfterViewInit {
       this.errorInvalidCost()
     }
 
+    if (this.draft.repeat !== undefined && this.draft.repeatInterval <= 0) {
+      this.errorInvalidRepeatInterval()
+    }
+
     // Finalize
     if (this.isAddingNewItem) {
       this.dataStore.addItem(this.draft)
@@ -219,5 +319,53 @@ export class ItemDetailsComponent implements AfterViewInit {
 
   setRandomColor() {
     this.draft.color = this.dataStore.generateColor()
+  }
+
+  onDeferDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
+    let dayID = parseSpecialDate(
+      (event.targetElement as any).value || '', dayIDNow())
+    if (dayID === undefined) {
+      const date = event.value
+      if (date) {
+        dayID = dateToDayID(date as Date)
+      }
+    }
+    if (dayID === undefined) {
+      this.clearDeferDate()
+    } else {
+      this.draft.deferDate = dayID
+      this.deferDate = dayIDToDate(this.draft.deferDate)
+    }
+  }
+
+  onDueDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
+    let dayID = parseSpecialDate(
+      (event.targetElement as any).value || '', dayIDNow())
+    if (dayID === undefined) {
+      const date = event.value
+      if (date) {
+        dayID = dateToDayID(date as Date)
+      }
+    }
+    if (dayID === undefined) {
+      this.clearDueDate()
+    } else {
+      this.draft.dueDate = dayID
+      this.dueDate = dayIDToDate(this.draft.dueDate)
+    }
+  }
+
+  clearDeferDate() {
+    this.draft.deferDate = undefined
+    this.deferDate = null
+  }
+
+  clearDueDate() {
+    this.draft.dueDate = undefined
+    this.dueDate = null
+  }
+
+  private errorInvalidRepeatInterval() {
+    alert('Error: Invalid repeat interval')
   }
 }

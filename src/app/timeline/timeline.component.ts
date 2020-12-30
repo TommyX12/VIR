@@ -11,6 +11,7 @@ import {dateAddDay, dateToDayID, dayIDNow, startOfWeek} from '../util/time-util'
 import {Subscription} from 'rxjs'
 import {DataStore, DataStoreState} from '../data/data-store'
 import {MonthDayViewComponent} from '../month-day-view/month-day-view.component'
+import {HomeComponent} from '../home/home.component'
 
 @Component({
   selector: 'app-timeline',
@@ -59,6 +60,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     private readonly dataStore: DataStore,
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly zone: NgZone,
+    readonly home: HomeComponent,
   ) {
     this.viewRange = 'month' // Ensure row is updated
   }

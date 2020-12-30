@@ -13,6 +13,7 @@ import {
   SessionType,
 } from '../data/common'
 import {DayViewDialogComponent} from '../day-view-dialog/day-view-dialog.component'
+import {HomeComponent} from '../home/home.component'
 
 interface Session {
   scheduled: boolean
@@ -34,6 +35,7 @@ export class MonthDayViewComponent implements OnInit {
   @Input() dayID = dayIDNow()
   @Input() todayDayID = dayIDNow()
   @Input() forceDisplayMonth = false
+  @Input() home?: HomeComponent
 
   @ViewChild('background') backgroundRef?: ElementRef
 
@@ -157,6 +159,7 @@ export class MonthDayViewComponent implements OnInit {
       width: DayViewDialogComponent.DIALOG_WIDTH,
       data: {
         dayID: this.dayID,
+        home: this.home,
       },
       hasBackdrop: true,
       disableClose: false,
@@ -258,5 +261,9 @@ export class MonthDayViewComponent implements OnInit {
       const itemID = Number(data.substring(7))
       this.dataStore.addSession(this.dayID, SessionType.SCHEDULED, itemID, 1)
     }
+  }
+
+  showInItems(session: Session) {
+    this.home?.showInItems(session.item.id)
   }
 }

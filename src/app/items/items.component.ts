@@ -289,14 +289,51 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.dataStore.removeItem(node.id)
   }
 
+  /**
+   * NOTE: The items tab must be open already
+   */
   locateNodeByID(itemID: ItemID) {
-    // TODO
+    const node = this.getNodeByID(itemID)
+    if (node === undefined) return
+
+    this.expandParents(node)
+    // TODO This is a hack
+    setTimeout(() => {
+      const index = this.getDisplayIndex(node) || 0
+      this.scrollViewport?.scrollToIndex(index)
+    })
+  }
+
+  getNodeByID(itemID: ItemID) {
+    const {treeControl} = this
+
+    const dataNodes = treeControl.dataNodes
+    const size = dataNodes.length
+    for (let i = 0; i < size; ++i) {
+      const dataNode = dataNodes[i]
+      if (dataNode.id === itemID) {
+        return dataNode
+      }
+    }
+    return undefined
+  }
+
+  getDisplayIndex(node: ItemNode): number | undefined {
+    const nodes = this.dataSource._expandedData.value
+    const size = nodes.length
+    const itemID = node.id
+    for (let i = 0; i < size; ++i) {
+      if (nodes[i].id === itemID) {
+        return i
+      }
+    }
+    return undefined
   }
 
   expandParents(node: ItemNode) {
     const parent = this.getParent(node)
 
-    if (parent && parent.level > 0) {
+    if (parent) {
       this.treeControl.expand(parent)
       this.expandParents(parent)
     }

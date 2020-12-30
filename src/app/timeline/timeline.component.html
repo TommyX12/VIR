@@ -53,6 +53,7 @@
         <td *ngFor="let column of columns; trackBy:identity">
           <app-month-day-view
             #monthDayView
+            [home]="home"
             [dayID]="getDayIDOfCell(row, column)"
             [todayDayID]="todayDayID"
             [dayData]="getDayData(row, column)"

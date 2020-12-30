@@ -13,6 +13,8 @@ import {MatTabChangeEvent} from '@angular/material/tabs'
 import {TimelineComponent} from '../timeline/timeline.component'
 import {dateToDayID, dayIDNow, dayIDToDate} from '../util/time-util'
 import {MatDatepickerInputEvent} from '@angular/material/datepicker'
+import {ItemID} from '../data/common'
+import {MatDialog} from '@angular/material/dialog'
 
 const THEME_DARKNESS_SUFFIX = `-dark`
 const DEFAULT_THEME_NAME = 'main'
@@ -34,6 +36,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
   @ViewChild('timelineTab') timelineTab?: TimelineComponent
   @ViewChild('itemsTab') itemTab?: ItemsComponent
 
+  // TODO: This must match the actual tabs in the template.
+  //  Make this less error prone.
   tabs: TabData[] = [
     {
       getComponent: () => this.timelineTab,
@@ -52,8 +56,11 @@ export class HomeComponent implements OnInit, AfterViewInit {
 
   sideBarDayID = dayIDNow()
 
+  home = this
+
   constructor(private router: Router,
               private overlayContainer: OverlayContainer,
+              private dialog: MatDialog,
               public readonly dataStore: DataStore) {
     this.setActiveTheme(this.activeTheme, this.enableDarkMode)
   }
@@ -139,5 +146,22 @@ export class HomeComponent implements OnInit, AfterViewInit {
 
   sideBarGoToToday() {
     this.sideBarDayID = dayIDNow()
+  }
+
+  showInItems(itemID: ItemID) {
+    this.dialog.closeAll()
+
+    for (let i = 0; i < this.tabs.length; ++i) {
+      if (this.tabs[i].getComponent() === this.itemTab) {
+        this.selectedTabIndex = i
+        break
+      }
+    }
+    // TODO: This is a hack
+    setTimeout(() => {
+      setTimeout(() => {
+        this.itemTab?.locateNodeByID(itemID)
+      })
+    })
   }
 }

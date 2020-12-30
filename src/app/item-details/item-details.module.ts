@@ -10,6 +10,9 @@ import {ColorPickerModule} from 'ngx-color-picker'
 import {MatCheckboxModule} from '@angular/material/checkbox'
 import {MatAutocompleteModule} from '@angular/material/autocomplete'
 import {MatTooltipModule} from '@angular/material/tooltip'
+import {MatDatepickerModule} from '@angular/material/datepicker'
+import {MatSelectModule} from '@angular/material/select'
+import {MatButtonToggleModule} from '@angular/material/button-toggle'
 
 
 @NgModule({
@@ -26,6 +29,9 @@ import {MatTooltipModule} from '@angular/material/tooltip'
     MatAutocompleteModule,
     ReactiveFormsModule,
     MatTooltipModule,
+    MatDatepickerModule,
+    MatSelectModule,
+    MatButtonToggleModule,
   ],
   entryComponents: [ItemDetailsComponent],
   exports: [ItemDetailsComponent],

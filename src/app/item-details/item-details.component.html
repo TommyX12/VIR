@@ -41,6 +41,61 @@
         </button>
       </mat-form-field>
     </div>
+    <div class="full-width flex-row">
+      <mat-form-field class="flex-child right-margin">
+        <mat-label>Defer Date</mat-label>
+        <input matInput [matDatepicker]="deferDatePicker"
+               [value]="deferDate"
+               (dateChange)="onDeferDateChanged($event)">
+        <button type="button" matSuffix *ngIf="deferDate"
+                mat-icon-button (click)="clearDeferDate()">
+          <mat-icon>close</mat-icon>
+        </button>
+        <mat-datepicker-toggle matSuffix
+                               [for]="deferDatePicker"></mat-datepicker-toggle>
+        <mat-datepicker #deferDatePicker></mat-datepicker>
+      </mat-form-field>
+      <mat-form-field class="flex-child">
+        <mat-label>Due Date</mat-label>
+        <input matInput [matDatepicker]="dueDatePicker"
+               [value]="dueDate"
+               (dateChange)="onDueDateChanged($event)">
+        <button type="button" matSuffix *ngIf="dueDate"
+                mat-icon-button (click)="clearDueDate()">
+          <mat-icon>close</mat-icon>
+        </button>
+        <mat-datepicker-toggle matSuffix
+                               [for]="dueDatePicker"></mat-datepicker-toggle>
+        <mat-datepicker #dueDatePicker></mat-datepicker>
+      </mat-form-field>
+    </div>
+    <div class="full-width-field" *ngIf="dueDate">
+      <mat-checkbox name="repeat" [(ngModel)]="repeatEnabled">
+        Repeat
+      </mat-checkbox>
+      <div class="hfill"></div>
+      <mat-label class="right-margin">Every</mat-label>
+      <mat-form-field class="repeat-interval-field right-margin">
+        <input matInput class="repeat-interval-input" name="repeatInterval"
+               [(ngModel)]="repeatIntervalString" [disabled]="!repeatEnabled">
+      </mat-form-field>
+      <mat-form-field class="repeat-type-select">
+        <mat-select name="repeatType" [(ngModel)]="repeatType"
+                    [disabled]="!repeatEnabled">
+          <mat-option *ngFor="let option of repeatTypeOptions"
+                      [value]="option.type">{{option.displayName}}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+    <div class="full-width-field bottom-margin" *ngIf="repeatType === 'week'">
+      <mat-button-toggle-group multiple name="repeatDayOfWeek"
+                               [(ngModel)]="draft.repeat.dayOfWeek">
+        <mat-button-toggle *ngFor="let option of repeatDayOfWeekOptions"
+                           [value]="option.value">
+          {{option.dowDate | date:'E'}}
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
     <div class="full-width-field">
       <mat-checkbox name="useParentColor" [(ngModel)]="useParentColor">
         Use parent color
@@ -52,7 +107,7 @@
           <input [(colorPicker)]="colorString" [style.background]="colorString"
                  cpAlphaChannel="disabled" class="color-picker"/>
         </div>
-        <button mat-icon-button (click)="setRandomColor()"
+        <button type="button" mat-icon-button (click)="setRandomColor()"
                 matTooltip="Random"
                 matTooltipPosition="above">
           <mat-icon>autorenew</mat-icon>
