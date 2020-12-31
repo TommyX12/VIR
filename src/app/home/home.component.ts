@@ -15,6 +15,7 @@ import {dateToDayID, dayIDNow, dayIDToDate} from '../util/time-util'
 import {MatDatepickerInputEvent} from '@angular/material/datepicker'
 import {ItemID} from '../data/common'
 import {MatDialog} from '@angular/material/dialog'
+import {QueueComponent} from '../queue/queue.component'
 
 const THEME_DARKNESS_SUFFIX = `-dark`
 const DEFAULT_THEME_NAME = 'main'
@@ -34,7 +35,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
   @HostBinding('class') activeThemeCssClass: string
 
   @ViewChild('timelineTab') timelineTab?: TimelineComponent
-  @ViewChild('itemsTab') itemTab?: ItemsComponent
+  @ViewChild('itemsTab') itemsTab?: ItemsComponent
+  @ViewChild('queueTab') queueTab?: QueueComponent
 
   // TODO: This must match the actual tabs in the template.
   //  Make this less error prone.
@@ -43,7 +45,10 @@ export class HomeComponent implements OnInit, AfterViewInit {
       getComponent: () => this.timelineTab,
     },
     {
-      getComponent: () => this.itemTab,
+      getComponent: () => this.itemsTab,
+    },
+    {
+      getComponent: () => this.queueTab,
     },
   ]
 
@@ -152,7 +157,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.dialog.closeAll()
 
     for (let i = 0; i < this.tabs.length; ++i) {
-      if (this.tabs[i].getComponent() === this.itemTab) {
+      if (this.tabs[i].getComponent() === this.itemsTab) {
         this.selectedTabIndex = i
         break
       }
@@ -160,7 +165,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     // TODO: This is a hack
     setTimeout(() => {
       setTimeout(() => {
-        this.itemTab?.locateNodeByID(itemID)
+        this.itemsTab?.locateNodeByID(itemID)
       })
     })
   }

@@ -76,7 +76,7 @@ export class MonthDayViewComponent implements OnInit {
             type,
             item,
             count,
-            color: item.color || this.dataStore.getItemColor(item.parentID),
+            color: this.dataStore.getItemColor(item),
             done: type === SessionType.COMPLETED,
             itemDone: item.status === ItemStatus.COMPLETED,
           })

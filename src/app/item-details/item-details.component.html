@@ -15,13 +15,9 @@
       </mat-checkbox>
     </div>
     <div class="full-width flex-row">
-      <mat-form-field class="flex-child right-margin">
+      <mat-form-field class="flex-child">
         <mat-label>Cost (Estimated sessions needed)</mat-label>
         <input matInput name="cost" [(ngModel)]="cost"/>
-      </mat-form-field>
-      <mat-form-field class="flex-child">
-        <mat-label>Priority</mat-label>
-        <input matInput name="priority" [(ngModel)]="priority"/>
       </mat-form-field>
     </div>
     <div class="full-width flex-row">
@@ -114,11 +110,39 @@
       </mat-button-toggle-group>
     </div>
     <div class="full-width-field">
-      <mat-checkbox name="useParentColor" [(ngModel)]="useParentColor">
-        Use parent color
+      <mat-checkbox name="autoAdjustPriority"
+                    [(ngModel)]="draft.autoAdjustPriority">
+        Auto-adjust priority
       </mat-checkbox>
       <div class="hfill"></div>
-      <div *ngIf="!useParentColor" class="color-container">
+    </div>
+    <div class="full-width flex-row"
+         *ngIf="!draft.autoAdjustPriority && !completed">
+      <mat-form-field class="flex-child">
+        <mat-label>Priority After</mat-label>
+        <input matInput name="priorityPredecessor"
+               [(ngModel)]="priorityPredecessorItemKey"
+               [matAutocomplete]="auto"/>
+        <mat-autocomplete autoActiveFirstOption #auto="matAutocomplete">
+          <mat-option
+            *ngFor="let option of filteredPriorityPredecessorKeys | async"
+            [value]="option">
+            {{option}}
+          </mat-option>
+        </mat-autocomplete>
+        <button type="button" *ngIf="priorityPredecessorItemKey !== ''"
+                matSuffix
+                mat-icon-button (click)="priorityPredecessorItemKey=''">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+    <div class="full-width-field">
+      <mat-checkbox name="useParentColor" [(ngModel)]="draft.tryUseParentColor">
+        Use parent color if possible
+      </mat-checkbox>
+      <div class="hfill"></div>
+      <div class="color-container">
         <mat-label class="field-label">Color</mat-label>
         <div class="color-picker-container">
           <input [(colorPicker)]="colorString" [style.background]="colorString"

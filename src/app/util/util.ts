@@ -17,3 +17,20 @@ export function getOrCreate<K, V>(map: Map<K, V>, key: K, creator: () => V) {
   }
   return result
 }
+
+/**
+ * Move the element from oldIndex to before the element pointed to by newIndex.
+ * NOTE: This function ensures that the element is inserted to before the
+ * element pointed to by the newIndex *before* the deletion. So arrayMove([1,
+ * 2, 3], 0, 2) gives [2, 1, 3] instead of [2, 3, 1].
+ */
+export function arrayMove(array: any[], oldIndex: number, newIndex: number) {
+  if (oldIndex === newIndex) {
+    return
+  }
+  if (oldIndex < newIndex) {
+    array.splice(newIndex - 1, 0, array.splice(oldIndex, 1)[0])
+  } else {
+    array.splice(newIndex, 0, array.splice(oldIndex, 1)[0])
+  }
+}

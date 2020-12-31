@@ -12,7 +12,7 @@ import {ItemNode} from '../items/items.component'
 import {DataStore} from '../data/data-store'
 import {ItemID, ItemStatus} from '../data/common'
 
-const DROP_THRESHOLDS = [0.4, 0.666]
+const DROP_THRESHOLDS_WITH_CHILD_DROP = [0.4, 0.666]
 
 export enum ItemDroppedInsertionType {
   ABOVE,
@@ -41,6 +41,8 @@ export class ItemComponent implements OnInit {
    * This is for correctly computing drag and drop
    */
   @Input() itemHeight: number = 35
+
+  @Input() allowChildDrop = false
 
   @Output() bodyClicked = new EventEmitter()
   @Output() itemDropped = new EventEmitter<ItemDroppedEvent>()
@@ -88,9 +90,11 @@ export class ItemComponent implements OnInit {
     const y = event.clientY - rect.top
     const yPercent = y / this.itemHeight
     let insertionType: ItemDroppedInsertionType
-    if (yPercent < DROP_THRESHOLDS[0]) {
+    const drop_thresholds = this.allowChildDrop ?
+      DROP_THRESHOLDS_WITH_CHILD_DROP : [0.5, 0.5]
+    if (yPercent < drop_thresholds[0]) {
       insertionType = ItemDroppedInsertionType.ABOVE
-    } else if (yPercent > DROP_THRESHOLDS[1]) {
+    } else if (yPercent >= drop_thresholds[1]) {
       insertionType = ItemDroppedInsertionType.BELOW
     } else {
       insertionType = ItemDroppedInsertionType.CHILD
@@ -114,9 +118,11 @@ export class ItemComponent implements OnInit {
       element.style.borderTop = ''
       element.style.borderBottom = ''
       element.style.border = ''
-      if (yPercent < DROP_THRESHOLDS[0]) {
+      const drop_thresholds = this.allowChildDrop ?
+        DROP_THRESHOLDS_WITH_CHILD_DROP : [0.5, 0.5]
+      if (yPercent < drop_thresholds[0]) {
         element.style.borderTop = '5px solid #4488ff'
-      } else if (yPercent > DROP_THRESHOLDS[1]) {
+      } else if (yPercent >= drop_thresholds[1]) {
         element.style.borderBottom = '5px solid #4488ff'
       } else {
         element.style.border = '5px solid #44ff44'

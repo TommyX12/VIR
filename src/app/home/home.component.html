@@ -71,12 +71,22 @@
         <mat-tab>
           <ng-template mat-tab-label>
             <span class="tab-label">
-              <mat-icon class="tab-label-icon">list</mat-icon>
+              <mat-icon class="tab-label-icon">apps</mat-icon>
               Items
             </span>
           </ng-template>
           <app-items #itemsTab>
           </app-items>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="tab-label">
+              <mat-icon class="tab-label-icon">playlist_play</mat-icon>
+              Queue
+            </span>
+          </ng-template>
+          <app-queue #queueTab>
+          </app-queue>
         </mat-tab>
       </mat-tab-group>
     </mat-sidenav-content>

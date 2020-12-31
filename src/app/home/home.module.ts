@@ -20,6 +20,7 @@ import {DayViewModule} from '../day-view/day-view.module'
 import {MatFormFieldModule} from '@angular/material/form-field'
 import {MatDatepickerModule} from '@angular/material/datepicker'
 import {MatInputModule} from '@angular/material/input'
+import {QueueModule} from '../queue/queue.module'
 
 @NgModule({
   declarations: [HomeComponent],
@@ -28,7 +29,7 @@ import {MatInputModule} from '@angular/material/input'
     MatToolbarModule, MatIconModule, MatSlideToggleModule, MatSidenavModule,
     MatTabsModule, ItemsModule,
     MatTooltipModule, TimelineModule, DayViewModule, MatFormFieldModule,
-    MatDatepickerModule, MatInputModule,
+    MatDatepickerModule, MatInputModule, QueueModule,
   ],
 })
 export class HomeModule {

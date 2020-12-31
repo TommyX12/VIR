@@ -36,7 +36,6 @@ export interface ItemNode {
   name: string
   status: ItemStatus
   cost: number
-  priority: number
   isIndirect: boolean
   color: Color
 }
@@ -69,7 +68,7 @@ class ItemFilter {
   }
 
   onDataStoreUpdated(dataStore: DataStore) {
-    this.autocompleter = dataStore.getAutoCompleter()
+    this.autocompleter = dataStore.createAutoCompleter()
   }
 }
 
@@ -113,9 +112,8 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
       name: node.name,
       status: node.status,
       cost: node.cost,
-      priority: node.priority,
       isIndirect: this.indirectAllowedItemIDs.has(node.id),
-      color: node.color || this.dataStore.getItemColor(node.parentID),
+      color: this.dataStore.getItemColor(node),
     }
   }
 
@@ -246,8 +244,7 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
     const dialogRef = this.dialog.open(ItemDetailsComponent, {
       width: ItemDetailsComponent.DIALOG_WIDTH,
       data: {
-        initialColor: parentID === undefined ? this.dataStore.generateColor() :
-          undefined,
+        initialColor: this.dataStore.generateColor(),
         initialParent: parentID,
       },
       hasBackdrop: true,

@@ -53,6 +53,7 @@
            class="item">
         <app-item [node]="node" class="item-content"
                   [itemHeight]="itemHeight"
+                  [allowChildDrop]="true"
                   (itemDropped)="onItemDropped($event)"
                   (bodyClicked)="openDetails(node.id)">
           <span prefix>

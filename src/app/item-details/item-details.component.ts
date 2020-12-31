@@ -42,6 +42,11 @@ export interface ItemDetailsConfig {
    * When item is present, this field is ignored.
    */
   initialParent?: ItemID
+
+  /**
+   * When item is present, this field is ignored.
+   */
+  initialPriorityPredecessor?: ItemID
 }
 
 const REPEAT_TYPE_OPTIONS = [
@@ -86,11 +91,15 @@ export class ItemDetailsComponent implements AfterViewInit {
   draft: ItemDraft
   isAddingNewItem = false
 
-  autoCompleter: DataStoreAutoCompleter
+  parentAutoCompleter: DataStoreAutoCompleter
   originalParentItemKey?: string
   originalParentItemID?: ItemID
   private _parentItemKey: string = ''
   filteredParentKeys = new BehaviorSubject<string[]>([])
+
+  priorityPredecessorAutoCompleter: DataStoreAutoCompleter
+  private _priorityPredecessorItemKey: string = ''
+  filteredPriorityPredecessorKeys = new BehaviorSubject<string[]>([])
 
   deferDate: Date | null = null
   dueDate: Date | null = null
@@ -107,7 +116,9 @@ export class ItemDetailsComponent implements AfterViewInit {
     const item = data.item
     if (item === undefined) {
       this.draft = new ItemDraft()
-      this.draft.color = data.initialColor
+      if (data.initialColor !== undefined) {
+        this.draft.color = data.initialColor
+      }
       this.draft.parentID = data.initialParent
       this.isAddingNewItem = true
     } else {
@@ -115,11 +126,11 @@ export class ItemDetailsComponent implements AfterViewInit {
       this.isAddingNewItem = false
     }
 
-    this.autoCompleter = dataStore.getAutoCompleter()
+    this.parentAutoCompleter = dataStore.createAutoCompleter()
     if (this.draft.parentID !== undefined) {
       this.originalParentItemID = this.draft.parentID
       this.originalParentItemKey =
-        this.autoCompleter.idToKey(this.draft.parentID)
+        this.parentAutoCompleter.idToKey(this.draft.parentID)
       if (this.originalParentItemKey === undefined) {
         throw new Error('Parent item key not found')
       }
@@ -132,34 +143,36 @@ export class ItemDetailsComponent implements AfterViewInit {
     this.dueDate = this.draft.dueDate ? dayIDToDate(this.draft.dueDate) : null
     this.repeatEndDate =
       this.draft.repeatEndDate ? dayIDToDate(this.draft.repeatEndDate) : null
+
+    // Setting up priority predecessor
+    // TODO deal with things that have the same key, just like how parent is
+    //  done
+    const queueSet = new Set(dataStore.state.queue)
+    this.priorityPredecessorAutoCompleter =
+      dataStore.createAutoCompleter(item => queueSet.has(item.id))
+    let predecessorID: ItemID | undefined = undefined
+    if (this.isAddingNewItem) {
+      if (data.initialPriorityPredecessor !== undefined) {
+        this.draft.autoAdjustPriority = false
+        predecessorID = data.initialPriorityPredecessor
+      }
+    } else {
+      this.dataStore.getQueuePredecessor(this.draft.id)
+    }
+    if (predecessorID !== undefined) {
+      this._priorityPredecessorItemKey =
+        this.priorityPredecessorAutoCompleter.idToKey(predecessorID) || ''
+    } else {
+      this._priorityPredecessorItemKey = ''
+    }
   }
 
   get colorString() {
-    const color = this.draft.color
-    if (color === undefined) {
-      return '#888888'
-    }
-    return color.hex()
+    return this.draft.color.hex()
   }
 
   set colorString(value: string) {
     this.draft.color = Color(value)
-  }
-
-  get useParentColor() {
-    return this.draft.color === undefined
-  }
-
-  set useParentColor(value: boolean) {
-    if (value) {
-      this.draft.color = undefined
-    } else {
-      if (this.isAddingNewItem) {
-        this.draft.color = Color('#888888')
-      } else {
-        this.draft.color = this.dataStore.getItemColor(this.draft.id)
-      }
-    }
   }
 
   get completed() {
@@ -182,25 +195,23 @@ export class ItemDetailsComponent implements AfterViewInit {
     this.draft.cost = v
   }
 
-  get priority() {
-    return this.draft.priority.toString()
-  }
-
-  set priority(value: string) {
-    let v = Number(value)
-    if (isNaN(v) || v < 0) {
-      v = 0
-    }
-    this.draft.priority = v
-  }
-
   get parentItemKey() {
     return this._parentItemKey
   }
 
   set parentItemKey(value: string) {
     this._parentItemKey = value
-    this.filteredParentKeys.next(this.autoCompleter.queryKeys(value, 10))
+    this.filteredParentKeys.next(this.parentAutoCompleter.queryKeys(value, 10))
+  }
+
+  get priorityPredecessorItemKey() {
+    return this._priorityPredecessorItemKey
+  }
+
+  set priorityPredecessorItemKey(value: string) {
+    this._priorityPredecessorItemKey = value
+    this.filteredPriorityPredecessorKeys.next(
+      this.priorityPredecessorAutoCompleter.queryKeys(value, 10))
   }
 
   get repeatEnabled() {
@@ -266,7 +277,7 @@ export class ItemDetailsComponent implements AfterViewInit {
       parentID = (this.originalParentItemKey !== undefined &&
         this.parentItemKey === this.originalParentItemKey) ?
         this.originalParentItemID :
-        this.autoCompleter.keyToID(this._parentItemKey)
+        this.parentAutoCompleter.keyToID(this._parentItemKey)
       if (parentID === undefined) {
         this.errorParentNotFound()
         return
@@ -274,17 +285,33 @@ export class ItemDetailsComponent implements AfterViewInit {
     }
     this.draft.parentID = parentID
 
+    const priorityPredecessorID = this.priorityPredecessorAutoCompleter.keyToID(
+      this._priorityPredecessorItemKey)
+    const autoAdjustPriority = this.draft.autoAdjustPriority
+    const itemID = this.draft.id
+
     // Finalize
     try {
-      if (this.isAddingNewItem) {
-        this.dataStore.addItem(this.draft)
-      } else {
-        this.dataStore.updateItem(this.draft)
-      }
+      this.dataStore.validateItemDraft(this.draft, this.isAddingNewItem)
     } catch (e) {
       this.errorInvalidItem(e)
       return
     }
+    this.dataStore.batchEdit(it => {
+      if (this.isAddingNewItem) {
+        it.addItem(this.draft)
+      } else {
+        it.updateItem(this.draft)
+      }
+
+      if (!autoAdjustPriority) {
+        if (priorityPredecessorID) {
+          it.queueMoveToAfter(itemID, priorityPredecessorID)
+        } else {
+          it.queueMoveToIndex(itemID, 0)
+        }
+      }
+    })
     this.close()
   }
 

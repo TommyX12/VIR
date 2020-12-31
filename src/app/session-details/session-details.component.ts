@@ -68,7 +68,7 @@ export class SessionDetailsComponent implements OnInit, AfterViewInit {
     this.count = data.count === undefined ? 1 : data.count
     this.isEditing = !!data.isEditing
 
-    this.autoCompleter = dataStore.getAutoCompleter()
+    this.autoCompleter = dataStore.createAutoCompleter()
     if (this.isEditing) {
       if (data.itemID === undefined) {
         throw new Error('Item ID not given when isEditing is true')

@@ -1,7 +1,7 @@
 import Color from 'color'
 import convert from 'color-convert'
 import produce, {Draft, immerable} from 'immer'
-import {getOrCreate, random, removeValue} from '../util/util'
+import {arrayMove, getOrCreate, random, removeValue} from '../util/util'
 import {DayID, Item, ItemDraft, ItemID, ItemStatus, SessionType} from './common'
 import {Injectable} from '@angular/core'
 import {BehaviorSubject} from 'rxjs'
@@ -141,6 +141,7 @@ export class DayData {
 
 export interface DataStoreState {
   items: Map<ItemID, Item>
+  queue: ItemID[]
   rootItemIDs: ItemID[]
   timelineData: DayMap<DayData>
   nextID: number
@@ -166,22 +167,22 @@ export class DataStoreAutoCompleter {
   private _keyToID = new Map<string, ItemID>()
   private _idToKey = new Map<ItemID, string>()
 
-  constructor(
-    dataStore: DataStore,
-  ) {
+  constructor(dataStore: DataStore, filter?: (item: Item) => boolean) {
     // TODO: optimize: use DFS to reduce the amount of parent-tracing
     const keyCount = new Map<string, number>()
     dataStore.state.items.forEach((item) => {
-      const key = DataStoreAutoCompleter.getKey(dataStore, item)
-      this.data.push({
-        key: key,
-        id: item.id,
-      })
+      if (!filter || filter(item)) {
+        const key = DataStoreAutoCompleter.getKey(dataStore, item)
+        this.data.push({
+          key: key,
+          id: item.id,
+        })
 
-      if (keyCount.has(key)) {
-        keyCount.set(key, keyCount.get(key)! + 1)
-      } else {
-        keyCount.set(key, 1)
+        if (keyCount.has(key)) {
+          keyCount.set(key, keyCount.get(key)! + 1)
+        } else {
+          keyCount.set(key, 1)
+        }
       }
     })
 
@@ -322,6 +323,7 @@ export interface UpdateItemOptions {
 export class DataStore {
   private _state: DataStoreState = {
     items: new Map<ItemID, Item>(),
+    queue: [],
     nextID: 1,
     rootItemIDs: [],
     timelineData: new DayMap<DayData>(),
@@ -359,6 +361,11 @@ export class DataStore {
       }
       parent.childrenIDs.push(item.id)
     }
+
+    // TODO add to queue
+    if (itemDraft.status === ItemStatus.ACTIVE) {
+      draft.queue.push(id)
+    }
   }
 
   private updateItemReducer = (draft: Draft<DataStoreState>,
@@ -372,6 +379,9 @@ export class DataStore {
 
     const oldParentID = item.parentID
     const newParentID = itemDraft.parentID
+
+    const oldStatus = item.status
+    const newStatus = itemDraft.status
 
     itemDraft.applyToItem(item)
 
@@ -398,6 +408,15 @@ export class DataStore {
         insertWithOptions(parent.childrenIDs, item.id, options)
       }
     }
+
+    // TODO add to or remove from queue
+    if (oldStatus !== newStatus) {
+      if (newStatus === ItemStatus.ACTIVE) {
+        draft.queue.push(itemID)
+      } else {
+        removeValue(draft.queue, itemID)
+      }
+    }
   }
 
   private removeItemReducer = (draft: Draft<DataStoreState>,
@@ -418,6 +437,9 @@ export class DataStore {
     }
     draft.items.delete(itemID)
     this.invalidateItemID(draft, itemID)
+
+    // TODO remove from queue
+    removeValue(draft.queue, itemID)
   }
 
   private editSessionReducer = (draft: Draft<DataStoreState>, dayID: DayID,
@@ -441,6 +463,13 @@ export class DataStore {
     } else {
       sessionsOfType.set(itemID, newCount)
     }
+  }
+
+  private queueMoveReducer = (draft: Draft<DataStoreState>, itemID: ItemID,
+                              index: number) => {
+    const oldIndex = draft.queue.indexOf(itemID)
+    if (oldIndex < 0) return
+    arrayMove(draft.queue, oldIndex, index)
   }
 
   /**
@@ -518,7 +547,7 @@ export class DataStore {
     return this._state
   }
 
-  private validateItemDraft(draft: ItemDraft, isNewItem: boolean) {
+  validateItemDraft(draft: ItemDraft, isNewItem: boolean) {
     if (!isNewItem && draft.parentID !== undefined &&
       !this.canBeParentOf(draft.id, draft.parentID)) {
       throw {
@@ -528,7 +557,7 @@ export class DataStore {
     }
 
     if (draft.name === '' || draft.name.indexOf(':') !== -1 ||
-      draft.name.indexOf('#') !== -1) {
+      draft.name.indexOf('#') !== -1 || draft.name.indexOf('[') !== -1) {
       throw {
         type: 'invalidName',
         message: 'Error: Invalid item name',
@@ -558,8 +587,10 @@ export class DataStore {
     }
   }
 
-  public addItem(itemDraft: ItemDraft) {
-    this.validateItemDraft(itemDraft, true)
+  public addItem(itemDraft: ItemDraft, skipValidation: boolean = false) {
+    if (!skipValidation) {
+      this.validateItemDraft(itemDraft, true)
+    }
     this.pushUndo()
     this._state =
       produce(this._state, draft => {
@@ -568,8 +599,11 @@ export class DataStore {
     this.notify()
   }
 
-  public updateItem(itemDraft: ItemDraft, options: UpdateItemOptions = {}) {
-    this.validateItemDraft(itemDraft, false)
+  public updateItem(itemDraft: ItemDraft, options: UpdateItemOptions = {},
+                    skipValidation: boolean = false) {
+    if (!skipValidation) {
+      this.validateItemDraft(itemDraft, false)
+    }
     this.pushUndo()
     this._state = produce(
       this._state,
@@ -621,6 +655,42 @@ export class DataStore {
     this.editSession(dayID, type, itemID, SessionModificationType.SET, count)
   }
 
+  /**
+   * Move item to before a specific anchor on queue.
+   * NOTE: This function searches for itemID using the current state.
+   * Keep this in mind before chaining reducers on drafts.
+   */
+  public queueMoveToBefore(itemID: ItemID, anchorItemID: ItemID) {
+    const anchorIndex = this.state.queue.indexOf(anchorItemID)
+    if (anchorIndex < 0) return
+    this.queueMoveToIndex(itemID, anchorIndex)
+  }
+
+  /**
+   * Move item to after a specific anchor on queue.
+   * NOTE: This function searches for itemID using the current state.
+   * Keep this in mind before chaining reducers on drafts.
+   */
+  public queueMoveToAfter(itemID: ItemID, anchorItemID: ItemID) {
+    const anchorIndex = this.state.queue.indexOf(anchorItemID)
+    if (anchorIndex < 0) return
+    this.queueMoveToIndex(itemID, anchorIndex + 1)
+  }
+
+  /**
+   * Move item to before the item pointed to by the given index.
+   * NOTE: The item pointed to by the given index is considered *before* moving
+   * the old item.
+   */
+  public queueMoveToIndex(itemID: ItemID, index: number) {
+    this.pushUndo()
+    this._state =
+      produce(this._state, draft => {
+        this.queueMoveReducer(draft, itemID, index)
+      })
+    this.notify()
+  }
+
   public getDayData(dayID: DayID) {
     return this._state.timelineData.tryGet(dayID) || DataStore.defaultDayData
   }
@@ -628,6 +698,8 @@ export class DataStore {
   /**
    * Execute func without triggering any notification or undo.
    * Once func is returned, subscribers will be notified.
+   * NOTE: Make sure to catch any error *inside* the func instead of putting try
+   * outside of batchEdit.
    */
   public batchEdit(func: (dataStore: DataStore) => void) {
     if (this._freezeNotifyAndUndo === 0) {
@@ -639,6 +711,12 @@ export class DataStore {
     if (this._freezeNotifyAndUndo === 0) {
       this.notify()
     }
+  }
+
+  public getQueuePredecessor(itemID: ItemID) {
+    const index = this.state.queue.indexOf(itemID)
+    if (index <= 0) return undefined
+    return this.state.queue[index - 1]
   }
 
   clearUndo() {
@@ -724,20 +802,14 @@ export class DataStore {
     })
   }
 
-  getItemColor(itemID: ItemID | undefined): Color {
-    let result: Color | undefined = undefined
-    do {
-      if (itemID === undefined) {
-        break
-      }
-
-      const item = this.getItem(itemID)
-      if (item !== undefined) {
-        result = item.color
-        itemID = item.parentID
-      }
-    } while (result === undefined)
-    return result || this.defaultColor
+  getItemColor(item: Item): Color {
+    let i: Item | undefined = item
+    let result = i.color
+    while (i !== undefined && i.tryUseParentColor && i.parentID !== undefined) {
+      i = this.getItem(i.parentID)
+      if (i !== undefined) result = i.color
+    }
+    return result
   }
 
   getRootItems() {
@@ -755,8 +827,12 @@ export class DataStore {
     return Color.rgb(r, g, b)
   }
 
-  getAutoCompleter() {
-    return new DataStoreAutoCompleter(this)
+  /**
+   * NOTE: This is created with current state.
+   * Do not use if state is changed.
+   */
+  createAutoCompleter(filter?: (item: Item) => boolean) {
+    return new DataStoreAutoCompleter(this, filter)
   }
 
   getQualifiedName(item: Item) {

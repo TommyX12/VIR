@@ -105,9 +105,10 @@ export class Item {
     public readonly name: string = '',
     public readonly status: ItemStatus = ItemStatus.ACTIVE,
     public readonly cost: number = 1,
-    public readonly priority: number = 0,
+    public readonly autoAdjustPriority: boolean = true,
     public readonly childrenIDs: ItemID[] = [],
-    public readonly color?: Color,
+    public readonly tryUseParentColor: boolean = true,
+    public readonly color: Color,
     public readonly parentID?: ItemID,
     public readonly deferDate?: DayID,
     public readonly dueDate?: DayID,
@@ -124,7 +125,8 @@ export class Item {
       this.name,
       this.status,
       this.cost,
-      this.priority,
+      this.autoAdjustPriority,
+      this.tryUseParentColor,
       this.color,
       this.parentID,
       this.deferDate,
@@ -136,6 +138,8 @@ export class Item {
   }
 }
 
+const BLACK = Color(0, 0, 0)
+
 export class ItemDraft {
 
   constructor(
@@ -143,8 +147,9 @@ export class ItemDraft {
     public name: string = '',
     public status: ItemStatus = ItemStatus.ACTIVE,
     public cost: number = 1,
-    public priority: number = 0,
-    public color?: Color,
+    public autoAdjustPriority: boolean = true,
+    public tryUseParentColor: boolean = true,
+    public color: Color = BLACK,
     public parentID?: ItemID,
     public deferDate?: DayID,
     public dueDate?: DayID,
@@ -161,8 +166,9 @@ export class ItemDraft {
       this.name,
       this.status,
       this.cost,
-      this.priority,
+      this.autoAdjustPriority,
       [],
+      this.tryUseParentColor,
       this.color,
       this.parentID,
       this.deferDate,
@@ -177,7 +183,8 @@ export class ItemDraft {
     item.name = this.name
     item.status = this.status
     item.cost = this.cost
-    item.priority = this.priority
+    item.autoAdjustPriority = this.autoAdjustPriority
+    item.tryUseParentColor = this.tryUseParentColor
     item.color = this.color
     item.parentID = this.parentID
     item.deferDate = this.deferDate

@@ -1,0 +1,50 @@
+<div class="container">
+  <div class="filter-bar">
+    <mat-icon class="right-margin">search</mat-icon>
+    <mat-form-field class="flex-child right-margin">
+      <input matInput class="search-input" [(ngModel)]="searchQuery"/>
+      <button type="button" *ngIf="searchQuery !== ''" matSuffix
+              mat-icon-button (click)="searchQuery=''">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
+    <button mat-stroked-button (click)="newItem()" color="accent"
+            class="left-margin">
+      <mat-icon>add</mat-icon>
+      New Item
+    </button>
+  </div>
+  <mat-divider class="divider"></mat-divider>
+  <div class="queue-container" #scrollContainer>
+    <cdk-virtual-scroll-viewport [itemSize]="itemHeight" minBufferPx="1400"
+                                 #scrollViewport
+                                 maxBufferPx="1800" class="queue-viewport">
+      <div *cdkVirtualFor="let node of data; trackBy:trackByFn"
+           (dragstart)="onNodeDragStart(node, $event)"
+           draggable="true"
+           class="item">
+        <app-item [node]="node" class="item-content"
+                  [itemHeight]="itemHeight"
+                  (itemDropped)="onItemDropped($event)"
+                  (bodyClicked)="openDetails(node.id)">
+          <div prefix style="width: 10px;">
+          </div>
+          <div suffix>
+            <button mat-icon-button
+                    matTooltip="Delete"
+                    matTooltipPosition="above"
+                    (click)="removeItem(node)">
+              <mat-icon>close</mat-icon>
+            </button>
+            <button mat-icon-button
+                    matTooltip="Add After"
+                    matTooltipPosition="above"
+                    (click)="addItemAfter(node)">
+              <mat-icon>vertical_align_bottom</mat-icon>
+            </button>
+          </div>
+        </app-item>
+      </div>
+    </cdk-virtual-scroll-viewport>
+  </div>
+</div>
