@@ -14,6 +14,7 @@ import {
 } from '../data/common'
 import {DayViewDialogComponent} from '../day-view-dialog/day-view-dialog.component'
 import {HomeComponent} from '../home/home.component'
+import {ItemDetailsComponent} from '../item-details/item-details.component'
 
 interface Session {
   scheduled: boolean
@@ -195,6 +196,17 @@ export class MonthDayViewComponent implements OnInit {
         count: session.count,
         type: session.type,
       },
+      hasBackdrop: true,
+      disableClose: false,
+      autoFocus: false,
+    })
+  }
+
+  editItem(session: Session) {
+    const {item} = session
+    const dialogRef = this.dialog.open(ItemDetailsComponent, {
+      width: ItemDetailsComponent.DIALOG_WIDTH,
+      data: {item},
       hasBackdrop: true,
       disableClose: false,
       autoFocus: false,

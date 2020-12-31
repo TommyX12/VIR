@@ -7,6 +7,16 @@ import {Injectable} from '@angular/core'
 import {BehaviorSubject} from 'rxjs'
 import {dayIDNow} from '../util/time-util'
 
+export interface InvalidItemError {
+  type: string
+  message: string
+}
+
+export interface InvalidSessionError {
+  type: string
+  message: string
+}
+
 export enum SessionModificationType {
   SET,
   ADD,
@@ -188,9 +198,9 @@ export class DataStoreAutoCompleter {
 
   private static getKey(dataStore: DataStore, item: Item) {
     if (item.status === ItemStatus.COMPLETED) {
-      return '[DONE] ' + dataStore.getQualifiedString(item)
+      return '[DONE] ' + dataStore.getQualifiedName(item)
     }
-    return dataStore.getQualifiedString(item)
+    return dataStore.getQualifiedName(item)
   }
 
   query(pattern: string,
@@ -508,7 +518,48 @@ export class DataStore {
     return this._state
   }
 
+  private validateItemDraft(draft: ItemDraft, isNewItem: boolean) {
+    if (!isNewItem && draft.parentID !== undefined &&
+      !this.canBeParentOf(draft.id, draft.parentID)) {
+      throw {
+        type: 'invalidParent',
+        message: 'Error: Invalid parent',
+      }
+    }
+
+    if (draft.name === '' || draft.name.indexOf(':') !== -1 ||
+      draft.name.indexOf('#') !== -1) {
+      throw {
+        type: 'invalidName',
+        message: 'Error: Invalid item name',
+      }
+    }
+
+    if (draft.cost < 0) {
+      throw {
+        type: 'invalidCost',
+        message: 'Error: Invalid cost',
+      }
+    }
+
+    if (draft.repeat !== undefined && draft.repeatInterval <= 0) {
+      throw {
+        type: 'invalidRepeat',
+        message: 'Error: Invalid repeat interval',
+      }
+    }
+
+    if (draft.deferDate !== undefined && draft.dueDate !== undefined &&
+      draft.deferDate > draft.dueDate) {
+      throw {
+        type: 'invalidDeferDateDueDate',
+        message: 'Error: Defer date cannot be after due date',
+      }
+    }
+  }
+
   public addItem(itemDraft: ItemDraft) {
+    this.validateItemDraft(itemDraft, true)
     this.pushUndo()
     this._state =
       produce(this._state, draft => {
@@ -518,6 +569,7 @@ export class DataStore {
   }
 
   public updateItem(itemDraft: ItemDraft, options: UpdateItemOptions = {}) {
+    this.validateItemDraft(itemDraft, false)
     this.pushUndo()
     this._state = produce(
       this._state,
@@ -707,7 +759,7 @@ export class DataStore {
     return new DataStoreAutoCompleter(this)
   }
 
-  getQualifiedString(item: Item) {
+  getQualifiedName(item: Item) {
     let result = item.name
     while (item.parentID !== undefined) {
       const parent = this.getItem(item.parentID)
@@ -715,7 +767,7 @@ export class DataStore {
         throw new Error(`Parent ID ${item.parentID} not found`)
       }
       item = parent
-      result = item.name + ':' + result
+      result = item.name + ' : ' + result
     }
     return result
   }

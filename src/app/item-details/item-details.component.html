@@ -70,24 +70,41 @@
       </mat-form-field>
     </div>
     <div class="full-width-field" *ngIf="dueDate">
-      <mat-checkbox name="repeat" [(ngModel)]="repeatEnabled">
-        Repeat
+      <mat-checkbox name="repeat" [(ngModel)]="repeatEnabled"
+                    class="right-margin">
+        Repeat Every
       </mat-checkbox>
-      <div class="hfill"></div>
-      <mat-label class="right-margin">Every</mat-label>
       <mat-form-field class="repeat-interval-field right-margin">
         <input matInput class="repeat-interval-input" name="repeatInterval"
                [(ngModel)]="repeatIntervalString" [disabled]="!repeatEnabled">
       </mat-form-field>
-      <mat-form-field class="repeat-type-select">
+      <mat-form-field class="repeat-type-select right-margin">
         <mat-select name="repeatType" [(ngModel)]="repeatType"
                     [disabled]="!repeatEnabled">
           <mat-option *ngFor="let option of repeatTypeOptions"
                       [value]="option.type">{{option.displayName}}</mat-option>
         </mat-select>
       </mat-form-field>
+      <mat-form-field class="flex-child">
+        <mat-label>Until</mat-label>
+        <input matInput [matDatepicker]="repeatEndDatePicker"
+               [disabled]="!repeatEnabled"
+               [value]="repeatEndDate"
+               (dateChange)="onRepeatEndDateChanged($event)">
+        <button type="button" matSuffix *ngIf="repeatEndDate"
+                mat-icon-button (click)="clearRepeatEndDate()">
+          <mat-icon>close</mat-icon>
+        </button>
+        <mat-datepicker-toggle matSuffix
+                               [for]="repeatEndDatePicker"></mat-datepicker-toggle>
+        <mat-datepicker #repeatEndDatePicker></mat-datepicker>
+      </mat-form-field>
+      <mat-icon matTooltip="TODO" matTooltipPosition="above" class="help-icon">
+        help
+      </mat-icon>
     </div>
-    <div class="full-width-field bottom-margin" *ngIf="repeatType === 'week'">
+    <div class="full-width-field bottom-margin"
+         *ngIf="dueDate && repeatType === 'week'">
       <mat-button-toggle-group multiple name="repeatDayOfWeek"
                                [(ngModel)]="draft.repeat.dayOfWeek">
         <mat-button-toggle *ngFor="let option of repeatDayOfWeekOptions"

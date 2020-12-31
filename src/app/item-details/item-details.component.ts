@@ -6,7 +6,11 @@ import {
   ViewChild,
 } from '@angular/core'
 import {MAT_DIALOG_DATA, MatDialogRef} from '@angular/material/dialog'
-import {DataStore, DataStoreAutoCompleter} from '../data/data-store'
+import {
+  DataStore,
+  DataStoreAutoCompleter,
+  InvalidItemError,
+} from '../data/data-store'
 import Color from 'color'
 import {
   Item,
@@ -90,6 +94,7 @@ export class ItemDetailsComponent implements AfterViewInit {
 
   deferDate: Date | null = null
   dueDate: Date | null = null
+  repeatEndDate: Date | null = null
   repeatTypeOptions = REPEAT_TYPE_OPTIONS
   repeatDayOfWeekOptions = REPEAT_DAY_OF_WEEK_OPTIONS
 
@@ -125,6 +130,8 @@ export class ItemDetailsComponent implements AfterViewInit {
     this.deferDate =
       this.draft.deferDate ? dayIDToDate(this.draft.deferDate) : null
     this.dueDate = this.draft.dueDate ? dayIDToDate(this.draft.dueDate) : null
+    this.repeatEndDate =
+      this.draft.repeatEndDate ? dayIDToDate(this.draft.repeatEndDate) : null
   }
 
   get colorString() {
@@ -197,7 +204,7 @@ export class ItemDetailsComponent implements AfterViewInit {
   }
 
   get repeatEnabled() {
-    return this.draft.repeat !== undefined
+    return this.dueDate !== null && this.draft.repeat !== undefined
   }
 
   set repeatEnabled(value: boolean) {
@@ -264,33 +271,19 @@ export class ItemDetailsComponent implements AfterViewInit {
         this.errorParentNotFound()
         return
       }
-      if (!this.isAddingNewItem &&
-        !this.dataStore.canBeParentOf(this.draft.id, parentID)) {
-        this.errorInvalidParent()
-        return
-      }
     }
     this.draft.parentID = parentID
 
-    if (this.draft.name === '' || this.draft.name.indexOf(':') !== -1 ||
-      this.draft.name.indexOf('#') !== -1) {
-      this.errorInvalidName()
-      return
-    }
-
-    if (this.draft.cost < 0) {
-      this.errorInvalidCost()
-    }
-
-    if (this.draft.repeat !== undefined && this.draft.repeatInterval <= 0) {
-      this.errorInvalidRepeatInterval()
-    }
-
     // Finalize
-    if (this.isAddingNewItem) {
-      this.dataStore.addItem(this.draft)
-    } else {
-      this.dataStore.updateItem(this.draft)
+    try {
+      if (this.isAddingNewItem) {
+        this.dataStore.addItem(this.draft)
+      } else {
+        this.dataStore.updateItem(this.draft)
+      }
+    } catch (e) {
+      this.errorInvalidItem(e)
+      return
     }
     this.close()
   }
@@ -355,6 +348,23 @@ export class ItemDetailsComponent implements AfterViewInit {
     }
   }
 
+  onRepeatEndDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
+    let dayID = parseSpecialDate(
+      (event.targetElement as any).value || '', dayIDNow())
+    if (dayID === undefined) {
+      const date = event.value
+      if (date) {
+        dayID = dateToDayID(date as Date)
+      }
+    }
+    if (dayID === undefined) {
+      this.clearRepeatEndDate()
+    } else {
+      this.draft.repeatEndDate = dayID
+      this.repeatEndDate = dayIDToDate(this.draft.repeatEndDate)
+    }
+  }
+
   clearDeferDate() {
     this.draft.deferDate = undefined
     this.deferDate = null
@@ -365,7 +375,16 @@ export class ItemDetailsComponent implements AfterViewInit {
     this.dueDate = null
   }
 
+  clearRepeatEndDate() {
+    this.draft.repeatEndDate = undefined
+    this.repeatEndDate = null
+  }
+
   private errorInvalidRepeatInterval() {
     alert('Error: Invalid repeat interval')
+  }
+
+  private errorInvalidItem(error: any) {
+    alert((error as InvalidItemError).message)
   }
 }

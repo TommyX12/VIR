@@ -113,6 +113,7 @@ export class Item {
     public readonly dueDate?: DayID,
     public readonly repeat?: RepeatType,
     public readonly repeatInterval: number = 1,
+    public readonly repeatEndDate?: DayID,
   ) {
     this.repeat = deepcopy(repeat)
   }
@@ -130,6 +131,7 @@ export class Item {
       this.dueDate,
       this.repeat,
       this.repeatInterval,
+      this.repeatEndDate,
     )
   }
 }
@@ -148,6 +150,7 @@ export class ItemDraft {
     public dueDate?: DayID,
     public repeat?: RepeatType,
     public repeatInterval: number = 1,
+    public repeatEndDate?: DayID,
   ) {
     this.repeat = deepcopy(repeat)
   }
@@ -166,6 +169,7 @@ export class ItemDraft {
       this.dueDate,
       this.repeat,
       this.repeatInterval,
+      this.repeatEndDate,
     )
   }
 
@@ -180,6 +184,7 @@ export class ItemDraft {
     item.dueDate = this.dueDate
     item.repeat = deepcopy(this.repeat)
     item.repeatInterval = this.repeatInterval
+    item.repeatEndDate = this.repeatEndDate
   }
 }
 
