@@ -71,6 +71,14 @@
 //  background-color: #888888;
 //}
 
+.right-margin {
+  margin-right: 10px;
+}
+
+.large-right-margin {
+  margin-right: 15px;
+}
+
 .checkbox {
   color: #309aea;
   position: relative;
@@ -100,4 +108,14 @@
 
 .container-faded {
   opacity: 0.55;
+}
+
+.defer-date-text {
+  font-size: 0.75em;
+  color: #4488ff;
+}
+
+.due-date-text {
+  font-size: 0.75em;
+  opacity: 0.75;
 }

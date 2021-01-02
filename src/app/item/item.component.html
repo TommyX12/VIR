@@ -22,7 +22,15 @@
       <span class="item-name app-single-line-text">
         {{node.name}}
       </span>
-      <span>{{node.cost}}</span>
+      <span class="app-single-line-text defer-date-text large-right-margin"
+            *ngIf="node.effectiveDeferDate !== undefined">
+        Defer: {{getEffectiveDeferDate() | date:'MMM d'}}
+      </span>
+      <span class="app-single-line-text due-date-text large-right-margin"
+            *ngIf="node.effectiveDueDate !== undefined">
+        Due: {{getEffectiveDueDate() | date:'MMM d'}}
+      </span>
+      <span class="app-single-line-text">{{node.cost}}</span>
       <app-session-chip></app-session-chip>
     </div>
     <ng-content select="[suffix]"></ng-content>

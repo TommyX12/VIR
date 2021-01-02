@@ -186,6 +186,8 @@ export class QueueComponent implements OnInit, OnDestroy, AfterViewInit {
       return {
         isIndirect: false,
         level: 0,
+        effectiveDeferDate: this.dataStore.getEffectiveDeferDate(item),
+        effectiveDueDate: this.dataStore.getEffectiveDueDate(item),
         expandable: item.childrenIDs.length > 0,
         id: item.id,
         name: this.dataStore.getQualifiedName(item),

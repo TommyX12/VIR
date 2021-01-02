@@ -1,14 +1,6 @@
-import {DayID, DisplayDate} from '../data/common'
+import {DayID} from '../data/common'
 
 export const MS_PER_DAY = 86400000
-
-export function dayIDToDisplayDate(dayID: DayID): DisplayDate {
-  const date = new Date(dayID * MS_PER_DAY)
-  return new DisplayDate(
-    date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(),
-    date.getUTCDay(),
-  )
-}
 
 export function dayIDToDate(dayID: DayID): Date {
   const date = new Date(dayID * MS_PER_DAY)
@@ -44,6 +36,21 @@ export function dateAddDay(date: Date, delta: number) {
 export function startOfWeek(date: Date): Date {
   return new Date(
     date.getFullYear(), date.getMonth(), date.getDate() - date.getDay())
+}
+
+export function dowOfDayID(dayID: DayID): number {
+  return (dayID + 4) % 7
+}
+
+export function startOfWeekDayID(dayID: DayID): DayID {
+  return dayID - dowOfDayID(dayID)
+}
+
+/**
+ * NOTE: month is zero-based to be consistent with JavaScript dates.
+ */
+export function daysInMonth(year: number, month: number) {
+  return new Date(year, month + 1, 0).getDate()
 }
 
 const SPECIAL_DATE_KEYWORD_PARSERS: { [key: string]: (todayDayID: DayID) => DayID } = {

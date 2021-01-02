@@ -19,7 +19,7 @@ import {
 import {BehaviorSubject, Subscription} from 'rxjs'
 import {MatDialog} from '@angular/material/dialog'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
-import {Item, ItemID, ItemStatus} from '../data/common'
+import {DayID, Item, ItemID, ItemStatus} from '../data/common'
 import {debounceTime} from 'rxjs/operators'
 import {CdkVirtualScrollViewport} from '@angular/cdk/scrolling'
 import {
@@ -30,6 +30,8 @@ import {
 const SEARCH_IDLE_DELAY = 200
 
 export interface ItemNode {
+  effectiveDeferDate?: DayID
+  effectiveDueDate?: DayID
   expandable: boolean
   id: ItemID
   level: number
@@ -95,9 +97,9 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
     return children.filter(item => this.allowedItemIDs.has(item.id))
   }
 
-  private _transformer = (node: Item, level: number): ItemNode => {
+  private _transformer = (item: Item, level: number): ItemNode => {
     let hasAllowedChild = false
-    const childrenIDs = node.childrenIDs
+    const childrenIDs = item.childrenIDs
     const numChildren = childrenIDs.length
     for (let i = 0; i < numChildren; ++i) {
       if (this.allowedItemIDs.has(childrenIDs[i])) {
@@ -106,14 +108,16 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     }
     return {
+      effectiveDeferDate: this.dataStore.getEffectiveDeferDate(item),
+      effectiveDueDate: this.dataStore.getEffectiveDueDate(item),
       expandable: hasAllowedChild,
-      id: node.id,
+      id: item.id,
       level: level,
-      name: node.name,
-      status: node.status,
-      cost: node.cost,
-      isIndirect: this.indirectAllowedItemIDs.has(node.id),
-      color: this.dataStore.getItemColor(node),
+      name: item.name,
+      status: item.status,
+      cost: item.cost,
+      isIndirect: this.indirectAllowedItemIDs.has(item.id),
+      color: this.dataStore.getItemColor(item),
     }
   }
 

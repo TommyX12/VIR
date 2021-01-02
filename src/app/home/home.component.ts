@@ -169,4 +169,21 @@ export class HomeComponent implements OnInit, AfterViewInit {
       })
     })
   }
+
+  showInQueue(itemID: ItemID) {
+    this.dialog.closeAll()
+
+    for (let i = 0; i < this.tabs.length; ++i) {
+      if (this.tabs[i].getComponent() === this.queueTab) {
+        this.selectedTabIndex = i
+        break
+      }
+    }
+    // TODO: This is a hack
+    setTimeout(() => {
+      setTimeout(() => {
+        this.queueTab?.locateNodeByID(itemID)
+      })
+    })
+  }
 }

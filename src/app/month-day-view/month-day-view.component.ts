@@ -278,4 +278,8 @@ export class MonthDayViewComponent implements OnInit {
   showInItems(session: Session) {
     this.home?.showInItems(session.item.id)
   }
+
+  showInQueue(session: Session) {
+    this.home?.showInQueue(session.item.id)
+  }
 }

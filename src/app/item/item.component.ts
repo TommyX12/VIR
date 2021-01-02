@@ -11,6 +11,7 @@ import {
 import {ItemNode} from '../items/items.component'
 import {DataStore} from '../data/data-store'
 import {ItemID, ItemStatus} from '../data/common'
+import {dayIDToDate} from '../util/time-util'
 
 const DROP_THRESHOLDS_WITH_CHILD_DROP = [0.4, 0.666]
 
@@ -137,5 +138,15 @@ export class ItemComponent implements OnInit {
       element.style.borderBottom = ''
       element.style.border = ''
     }
+  }
+
+  getEffectiveDeferDate() {
+    return this.node.effectiveDeferDate ?
+      dayIDToDate(this.node.effectiveDeferDate) : undefined
+  }
+
+  getEffectiveDueDate() {
+    return this.node.effectiveDueDate ?
+      dayIDToDate(this.node.effectiveDueDate) : undefined
   }
 }

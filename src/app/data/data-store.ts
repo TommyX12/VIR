@@ -2,7 +2,15 @@ import Color from 'color'
 import convert from 'color-convert'
 import produce, {Draft, immerable} from 'immer'
 import {arrayMove, getOrCreate, random, removeValue} from '../util/util'
-import {DayID, Item, ItemDraft, ItemID, ItemStatus, SessionType} from './common'
+import {
+  DayID,
+  Item,
+  ItemDraft,
+  ItemID,
+  ItemStatus,
+  RepeatType,
+  SessionType,
+} from './common'
 import {Injectable} from '@angular/core'
 import {BehaviorSubject} from 'rxjs'
 import {dayIDNow} from '../util/time-util'
@@ -50,8 +58,32 @@ export class DayMap<T> {
     return Math.floor(dayID / DayMap.PARTITION_SIZE)
   }
 
+  private static toDayID(partitionID: number) {
+    return partitionID * DayMap.PARTITION_SIZE
+  }
+
   private getPartition(dayID: DayID) {
     return this.partitions.get(DayMap.toPartitionID(dayID))
+  }
+
+  public getEarliestDayID() {
+    let earliestPartitionID: number | undefined = undefined
+    this.partitions.forEach((_, partitionID) => {
+      if (earliestPartitionID === undefined || partitionID <
+        earliestPartitionID) {
+        earliestPartitionID = partitionID
+      }
+    })
+    if (earliestPartitionID === undefined) return undefined
+
+    let earliestDayID: number | undefined = undefined
+    this.partitions.get(earliestPartitionID)!.forEach((_, dayID) => {
+      if (earliestDayID === undefined || dayID < earliestDayID) {
+        earliestDayID = dayID
+      }
+    })
+    if (earliestDayID === undefined) return DayMap.toDayID(earliestPartitionID)
+    return earliestDayID
   }
 
   public tryGet(dayID: DayID) {
@@ -319,6 +351,27 @@ export interface UpdateItemOptions {
   insert?: 'above' | 'below'
 }
 
+/**
+ * NOTE: This will make sure that parent (i.e. prefix) is always after children.
+ */
+function lexicographicLessThan(a: number[], b: number[]) {
+  let count = Math.min(a.length, b.length)
+  for (let i = 0; i < count; ++i) {
+    if (a[i] < b[i]) return true
+    if (a[i] > b[i]) return false
+  }
+  return a.length >= b.length
+}
+
+export interface EffectiveItemInfo {
+  deferDate?: DayID
+  dueDate?: DayID
+  repeat?: RepeatType
+  repeatEndDate?: DayID
+  repeatInterval: number
+  hasAncestorRepeat: boolean
+}
+
 @Injectable()
 export class DataStore {
   private _state: DataStoreState = {
@@ -362,10 +415,7 @@ export class DataStore {
       parent.childrenIDs.push(item.id)
     }
 
-    // TODO add to queue
-    if (itemDraft.status === ItemStatus.ACTIVE) {
-      draft.queue.push(id)
-    }
+    return id
   }
 
   private updateItemReducer = (draft: Draft<DataStoreState>,
@@ -408,15 +458,6 @@ export class DataStore {
         insertWithOptions(parent.childrenIDs, item.id, options)
       }
     }
-
-    // TODO add to or remove from queue
-    if (oldStatus !== newStatus) {
-      if (newStatus === ItemStatus.ACTIVE) {
-        draft.queue.push(itemID)
-      } else {
-        removeValue(draft.queue, itemID)
-      }
-    }
   }
 
   private removeItemReducer = (draft: Draft<DataStoreState>,
@@ -437,9 +478,6 @@ export class DataStore {
     }
     draft.items.delete(itemID)
     this.invalidateItemID(draft, itemID)
-
-    // TODO remove from queue
-    removeValue(draft.queue, itemID)
   }
 
   private editSessionReducer = (draft: Draft<DataStoreState>, dayID: DayID,
@@ -470,6 +508,122 @@ export class DataStore {
     const oldIndex = draft.queue.indexOf(itemID)
     if (oldIndex < 0) return
     arrayMove(draft.queue, oldIndex, index)
+  }
+
+  /**
+   * NOTE: This function searches for items using the current state, not in the
+   * given draft. Keep this in mind before chaining reducers on drafts.
+   */
+  private smartInsertItemToQueueReducer = (draft: Draft<DataStoreState>,
+                                           itemID: ItemID) => {
+    // TODO improve this heuristic
+
+    const item = this.getItem(itemID)
+    if (item === undefined) return
+
+    let queue = this.state.queue
+    let queueSize = queue.length
+
+    let start = 0
+    let end = queueSize // exclusive
+    const selfDueDate = this.getEffectiveDueDate(item)
+    if (selfDueDate === undefined) {
+      // Search for the last item with deadline
+      // for (let i = queueSize - 1; i >= 0; --i) {
+      //   if (this.getItem(queue[i])!.dueDate !== undefined) {
+      //     start = i + 1
+      //     break
+      //   }
+      // }
+    } else {
+      start = 0
+      end = 0
+      for (let i = 0; i < queueSize; ++i) {
+        const dueDate = this.getEffectiveDueDate(this.getItem(queue[i])!)
+        if (dueDate === undefined) continue
+        if (dueDate < selfDueDate) {
+          start = i + 1
+          end = start
+        } else if (dueDate > selfDueDate) break
+      }
+      for (let i = queueSize - 1; i >= 0; --i) {
+        const dueDate = this.getEffectiveDueDate(this.getItem(queue[i])!)
+        if (dueDate === undefined) continue
+        if (dueDate > selfDueDate) {
+          end = i
+        } else if (dueDate < selfDueDate) break
+      }
+    }
+
+    if (start >= end) {
+      draft.queue.splice(start, 0, itemID)
+      return
+    } else {
+      const selfScore = this.getLexicographicScore(itemID)
+      // TODO draft.items.get(parentID)!.childrenIDs.indexOf(itemID)
+      let candidate: number | undefined = undefined
+      let candidateScore: number[] | undefined = undefined
+      for (let i = start; i < end; ++i) {
+        const score = this.getLexicographicScore(queue[i])
+        if (lexicographicLessThan(score, selfScore)) {
+          if (candidateScore === undefined ||
+            lexicographicLessThan(candidateScore, score)) {
+            candidate = i
+            candidateScore = score
+          }
+        }
+      }
+
+      if (candidate === undefined) {
+        draft.queue.splice(start, 0, itemID)
+        return
+      } else {
+        draft.queue.splice(candidate + 1, 0, itemID)
+        return
+      }
+    }
+  }
+
+  private removeItemFromQueueReducer = (draft: Draft<DataStoreState>,
+                                        itemID: ItemID) => {
+    removeValue(draft.queue, itemID)
+  }
+
+  private autoAdjustQueueReducer = (draft: Draft<DataStoreState>) => {
+    const queueSize = draft.queue.length
+    const datedIndices: number[] = []
+    const data: {
+      itemID: ItemID,
+      dueDate: DayID,
+      originalIndex: number,
+    }[] = []
+    for (let i = 0; i < queueSize; ++i) {
+      const itemID = draft.queue[i]
+      const item = this.getItem(itemID)
+      if (item === undefined) {
+        throw new Error('Queue contained invalid itemID')
+      }
+
+      const dueDate = this.getEffectiveDueDate(item)
+      if (dueDate !== undefined) {
+        datedIndices.push(i)
+        data.push({
+          dueDate, itemID, originalIndex: i,
+        })
+      }
+    }
+
+    data.sort((a, b) => {
+      if (a.dueDate !== b.dueDate) {
+        return a.dueDate - b.dueDate
+      }
+      return a.originalIndex - b.originalIndex
+    })
+
+    const count = datedIndices.length
+    for (let i = 0; i < count; ++i) {
+      draft.queue[datedIndices[i]] = data[i].itemID
+    }
   }
 
   /**
@@ -592,10 +746,18 @@ export class DataStore {
       this.validateItemDraft(itemDraft, true)
     }
     this.pushUndo()
+    let id = 0
+    const newStatus = itemDraft.status
     this._state =
       produce(this._state, draft => {
-        this.addItemReducer(draft, itemDraft)
+        id = this.addItemReducer(draft, itemDraft)
       })
+    if (newStatus === ItemStatus.ACTIVE) {
+      this._state =
+        produce(this._state, draft => {
+          this.smartInsertItemToQueueReducer(draft, id)
+        })
+    }
     this.notify()
   }
 
@@ -605,12 +767,36 @@ export class DataStore {
       this.validateItemDraft(itemDraft, false)
     }
     this.pushUndo()
+    const itemID = itemDraft.id
+    const item = this.getItem(itemID)
+    if (item === undefined) {
+      throw new Error(`Item with ID ${itemID} does not exist`)
+    }
+    const oldStatus = item.status
+    const newStatus = itemDraft.status
     this._state = produce(
       this._state,
       draft => {
         this.updateItemReducer(draft, itemDraft, options)
       },
     )
+    if (oldStatus !== newStatus) {
+      if (newStatus === ItemStatus.ACTIVE) {
+        this._state =
+          produce(this._state, draft => {
+            this.smartInsertItemToQueueReducer(draft, itemID)
+          })
+      } else {
+        this._state =
+          produce(this._state, draft => {
+            this.removeItemFromQueueReducer(draft, itemID)
+          })
+      }
+    }
+    this._state =
+      produce(this._state, draft => {
+        this.autoAdjustQueueReducer(draft)
+      })
     this.notify()
   }
 
@@ -619,6 +805,10 @@ export class DataStore {
     this._state =
       produce(this._state, draft => {
         this.removeItemReducer(draft, itemID)
+      })
+    this._state =
+      produce(this._state, draft => {
+        this.removeItemFromQueueReducer(draft, itemID)
       })
     this.notify()
   }
@@ -812,6 +1002,75 @@ export class DataStore {
     return result
   }
 
+  getEffectiveDeferDate(item: Item): DayID | undefined {
+    let i: Item | undefined = item
+    let result = i.deferDate
+    while (i !== undefined && i.parentID !== undefined) {
+      i = this.getItem(i.parentID)
+      if (i !== undefined && i.deferDate !== undefined) {
+        if (result === undefined) {
+          result = i.deferDate
+        } else {
+          result = Math.max(result, i.deferDate)
+        }
+      }
+    }
+    return result
+  }
+
+  getEffectiveDueDate(item: Item): DayID | undefined {
+    let i: Item | undefined = item
+    let result = i.dueDate
+    while (i !== undefined && i.parentID !== undefined) {
+      i = this.getItem(i.parentID)
+      if (i !== undefined && i.dueDate !== undefined) {
+        if (result === undefined) {
+          result = i.dueDate
+        } else {
+          result = Math.min(result, i.dueDate)
+        }
+      }
+    }
+    return result
+  }
+
+  getEffectiveInfo(item: Item): EffectiveItemInfo {
+    let i: Item | undefined = item
+    let result: EffectiveItemInfo = {
+      deferDate: i.deferDate,
+      dueDate: i.dueDate,
+      repeat: i.repeat,
+      repeatEndDate: i.repeatEndDate,
+      repeatInterval: i.repeatInterval,
+      hasAncestorRepeat: false,
+    }
+    while (i !== undefined && i.parentID !== undefined) {
+      i = this.getItem(i.parentID)
+      if (i !== undefined && i.deferDate !== undefined) {
+        if (result.deferDate === undefined) {
+          result.deferDate = i.deferDate
+        } else {
+          result.deferDate = Math.max(result.deferDate, i.deferDate)
+        }
+      }
+      if (i !== undefined && i.dueDate !== undefined) {
+        if (result.dueDate === undefined) {
+          result.dueDate = i.dueDate
+        } else {
+          result.dueDate = Math.min(result.dueDate, i.dueDate)
+        }
+      }
+      if (i !== undefined && i.repeat !== undefined) {
+        // Use ancestor repeat if exists
+        result.repeat = i.repeat
+        result.repeatEndDate = i.repeatEndDate
+        result.repeatInterval = i.repeatInterval
+        result.hasAncestorRepeat = i.status !== ItemStatus.COMPLETED
+      }
+    }
+    return result
+  }
+
   getRootItems() {
     const result: Item[] = []
     const numRootItems = this._state.rootItemIDs.length
@@ -860,5 +1119,24 @@ export class DataStore {
     }
 
     return true
+  }
+
+  private getLexicographicScore(itemID: ItemID) {
+    const result: number[] = []
+    let item: Item | undefined = this.getItem(itemID)
+    while (item !== undefined) {
+      const parentID = item.parentID
+      if (parentID === undefined) {
+        result.push(this.state.rootItemIDs.indexOf(item.id))
+        break
+      } else {
+        const parentItem = this.getItem(parentID)
+        if (parentItem === undefined) break
+        result.push(parentItem.childrenIDs.indexOf(item.id))
+        item = parentItem
+      }
+    }
+    result.reverse()
+    return result
   }
 }

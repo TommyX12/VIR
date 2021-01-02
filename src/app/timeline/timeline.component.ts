@@ -12,6 +12,7 @@ import {Subscription} from 'rxjs'
 import {DataStore, DataStoreState} from '../data/data-store'
 import {MonthDayViewComponent} from '../month-day-view/month-day-view.component'
 import {HomeComponent} from '../home/home.component'
+import {DataAnalyzer} from '../data/data-analyzer'
 
 @Component({
   selector: 'app-timeline',
@@ -34,6 +35,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   weekStartDate = startOfWeek(new Date())
 
   private dataStoreChangeSubscription?: Subscription
+  private dataAnalyzerChangeSubscription?: Subscription
 
   private updateIntervalID?: any
 
@@ -56,8 +58,14 @@ export class TimelineComponent implements OnInit, OnDestroy {
     this.refresh()
   }
 
+  private onAnalyzerChanged = (dataAnalyzer: DataAnalyzer) => {
+    // TODO implement me
+    this.refresh()
+  }
+
   constructor(
     private readonly dataStore: DataStore,
+    private readonly dataAnalyzer: DataAnalyzer,
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly zone: NgZone,
     readonly home: HomeComponent,
@@ -106,11 +114,17 @@ export class TimelineComponent implements OnInit, OnDestroy {
       this.dataStoreChangeSubscription =
         this.dataStore.onChange.subscribe(this.onDataChanged)
     }
+    if (this.dataAnalyzerChangeSubscription === undefined) {
+      this.dataAnalyzerChangeSubscription =
+        this.dataAnalyzer.onChange.subscribe(this.onAnalyzerChanged)
+    }
   }
 
   unsubscribeFromData() {
     this.dataStoreChangeSubscription?.unsubscribe()
     this.dataStoreChangeSubscription = undefined
+    this.dataAnalyzerChangeSubscription?.unsubscribe()
+    this.dataAnalyzerChangeSubscription = undefined
   }
 
   /**

@@ -34,3 +34,15 @@ export function arrayMove(array: any[], oldIndex: number, newIndex: number) {
     array.splice(newIndex, 0, array.splice(oldIndex, 1)[0])
   }
 }
+
+export class Counter<K> {
+  private data = new Map<K, number>()
+
+  add(key: K, amount: number) {
+    this.data.set(key, (this.data.get(key) || 0) + amount)
+  }
+
+  get(key: K) {
+    return this.data.get(key) || 0
+  }
+}
