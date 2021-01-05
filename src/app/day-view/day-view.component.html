@@ -2,10 +2,19 @@
      [clearDragReact]="clearDragReact" (drop)="onDrop($event)">
   <div #background class="background"></div>
   <div class="header">
-    <p class="date no-pointer-event">
+    <p class="date no-pointer-event app-single-line-text">
       {{getDate() | date:'fullDate'}}
     </p>
     <div class="hfill"></div>
+  </div>
+  <mat-divider></mat-divider>
+  <div class="toolbar">
+    <div class="hfill"></div>
+    <span class="quota-text" [innerHTML]="getQuotaHtml()">
+    </span>
+    <button mat-icon-button (click)="editQuota()" class="right-margin">
+      <mat-icon>edit</mat-icon>
+    </button>
     <button mat-icon-button (click)="onAddButtonClicked($event)"
             [matMenuTriggerFor]="addMenu">
       <mat-icon>add</mat-icon>
@@ -21,8 +30,9 @@
       </button>
     </mat-menu>
   </div>
+  <mat-divider></mat-divider>
   <div class="progress-bar">
-    <div class="progress-bar-filled"></div>
+    <div class="progress-bar-filled" [style.width]="progress * 100 + '%'"></div>
   </div>
   <div class="content">
     <div *ngFor="let sessionGroup of sessionGroups" class="session-group">

@@ -17,16 +17,14 @@ import {
   ItemDraft,
   ItemID,
   ItemStatus,
-  REPEAT_TYPE_FACTORY_BY_ID,
+  REPEAT_TYPE_FACTORY_BY_TYPE,
 } from '../data/common'
 import {BehaviorSubject} from 'rxjs'
 import {MatDatepickerInputEvent} from '@angular/material/datepicker'
 import {
   dateAddDay,
-  dateToDayID,
-  dayIDNow,
   dayIDToDate,
-  parseSpecialDate,
+  parseMatDatePicker,
   startOfWeek,
 } from '../util/time-util'
 
@@ -222,7 +220,7 @@ export class ItemDetailsComponent implements AfterViewInit {
     if (value) {
       if (this.draft.repeat === undefined) {
         this.draft.repeat =
-          REPEAT_TYPE_FACTORY_BY_ID.get(REPEAT_TYPE_OPTIONS[0].type)?.create()
+          REPEAT_TYPE_FACTORY_BY_TYPE.get(REPEAT_TYPE_OPTIONS[0].type)?.create()
       }
     } else {
       this.draft.repeat = undefined
@@ -232,16 +230,16 @@ export class ItemDetailsComponent implements AfterViewInit {
   get repeatType() {
     const repeatType = this.draft.repeat
     if (repeatType === undefined) return undefined
-    return repeatType.id
+    return repeatType.type
   }
 
   set repeatType(value: string | undefined) {
     if (value === undefined) {
       this.draft.repeat = undefined
     } else {
-      if (this.draft.repeat === undefined || this.draft.repeat.id !== value) {
+      if (this.draft.repeat === undefined || this.draft.repeat.type !== value) {
         this.draft.repeat =
-          REPEAT_TYPE_FACTORY_BY_ID.get(value)?.create()
+          REPEAT_TYPE_FACTORY_BY_TYPE.get(value)?.create()
       }
     }
   }
@@ -342,14 +340,7 @@ export class ItemDetailsComponent implements AfterViewInit {
   }
 
   onDeferDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
-    let dayID = parseSpecialDate(
-      (event.targetElement as any).value || '', dayIDNow())
-    if (dayID === undefined) {
-      const date = event.value
-      if (date) {
-        dayID = dateToDayID(date as Date)
-      }
-    }
+    let dayID = parseMatDatePicker(event)
     if (dayID === undefined) {
       this.clearDeferDate()
     } else {
@@ -359,14 +350,7 @@ export class ItemDetailsComponent implements AfterViewInit {
   }
 
   onDueDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
-    let dayID = parseSpecialDate(
-      (event.targetElement as any).value || '', dayIDNow())
-    if (dayID === undefined) {
-      const date = event.value
-      if (date) {
-        dayID = dateToDayID(date as Date)
-      }
-    }
+    let dayID = parseMatDatePicker(event)
     if (dayID === undefined) {
       this.clearDueDate()
     } else {
@@ -376,14 +360,7 @@ export class ItemDetailsComponent implements AfterViewInit {
   }
 
   onRepeatEndDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
-    let dayID = parseSpecialDate(
-      (event.targetElement as any).value || '', dayIDNow())
-    if (dayID === undefined) {
-      const date = event.value
-      if (date) {
-        dayID = dateToDayID(date as Date)
-      }
-    }
+    let dayID = parseMatDatePicker(event)
     if (dayID === undefined) {
       this.clearRepeatEndDate()
     } else {
@@ -413,5 +390,11 @@ export class ItemDetailsComponent implements AfterViewInit {
 
   private errorInvalidItem(error: any) {
     alert((error as InvalidItemError).message)
+  }
+
+  delete() {
+    if (this.isAddingNewItem) return
+    this.dataStore.removeItem(this.draft.id)
+    this.close()
   }
 }

@@ -1,0 +1,29 @@
+<div class="container">
+  <div class="toolbar">
+    <div class="hfill"></div>
+    <button mat-stroked-button (click)="newRule()" color="accent"
+            class="left-margin">
+      <mat-icon>add</mat-icon>
+      New Rule
+    </button>
+  </div>
+  <mat-divider class="divider"></mat-divider>
+  <div class="quota-list-container" #scrollContainer>
+    <cdk-virtual-scroll-viewport [itemSize]="itemHeight" minBufferPx="1400"
+                                 #scrollViewport
+                                 maxBufferPx="1800" class="quota-list-viewport">
+      <div *cdkVirtualFor="let node of data; trackBy:trackByFn"
+           (dragstart)="onNodeDragStart(node, $event)"
+           [style.height]="itemHeight + 'px'"
+           [style.min-height]="itemHeight + 'px'"
+           [style.max-height]="itemHeight + 'px'"
+           draggable="true">
+        <app-quota-rule [node]="node" class="item-content"
+                        [itemHeight]="itemHeight"
+                        (quotaRuleDropped)="onQuotaRuleDropped($event)"
+                        (bodyClicked)="openDetails(node.id)">
+        </app-quota-rule>
+      </div>
+    </cdk-virtual-scroll-viewport>
+  </div>
+</div>

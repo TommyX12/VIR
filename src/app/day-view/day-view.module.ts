@@ -8,6 +8,8 @@ import {MatTooltipModule} from '@angular/material/tooltip'
 import {SessionDetailsModule} from '../session-details/session-details.module'
 import {SharedModule} from '../shared/shared.module'
 import {MatSnackBarModule} from '@angular/material/snack-bar'
+import {MatDividerModule} from '@angular/material/divider'
+import {QuickQuotaEditModule} from '../quick-quota-edit/quick-quota-edit.module'
 
 
 @NgModule({
@@ -21,6 +23,8 @@ import {MatSnackBarModule} from '@angular/material/snack-bar'
     SharedModule,
     MatTooltipModule,
     MatSnackBarModule,
+    MatDividerModule,
+    QuickQuotaEditModule,
   ],
   exports: [DayViewComponent],
 })

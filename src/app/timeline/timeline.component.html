@@ -52,6 +52,7 @@
           <app-month-day-view
             #monthDayView
             [home]="home"
+            [quota]="getQuota(row, column)"
             [dayID]="getDayIDOfCell(row, column)"
             [todayDayID]="todayDayID"
             [dayData]="getDayData(row, column)"

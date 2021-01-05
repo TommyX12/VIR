@@ -5,6 +5,25 @@ export function removeValue<T>(array: T[], value: T) {
   }
 }
 
+export function arrayToMap<T, K>(array: T[], getKey: (T) => K): Map<K, T> {
+  const result = new Map<K, T>()
+  const size = array.length
+  for (let i = 0; i < size; i++) {
+    const item = array[i]
+    result.set(getKey(item), item)
+  }
+  return result
+}
+
+export function arrayShallowEquals(a: any[], b: any[]) {
+  const length = a.length
+  if (length !== b.length) return false
+  for (let i = 0; i < length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
 export function random(min: number, max: number) {
   return min + Math.random() * (max - min)
 }

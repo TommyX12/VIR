@@ -7,6 +7,7 @@ import {MatMenuModule} from '@angular/material/menu'
 import {SessionDetailsModule} from '../session-details/session-details.module'
 import {SharedModule} from '../shared/shared.module'
 import {DayViewDialogModule} from '../day-view-dialog/day-view-dialog.module'
+import {QuickQuotaEditModule} from '../quick-quota-edit/quick-quota-edit.module'
 
 
 @NgModule({
@@ -19,6 +20,7 @@ import {DayViewDialogModule} from '../day-view-dialog/day-view-dialog.module'
     SessionDetailsModule,
     SharedModule,
     DayViewDialogModule,
+    QuickQuotaEditModule,
   ],
   exports: [MonthDayViewComponent],
 })

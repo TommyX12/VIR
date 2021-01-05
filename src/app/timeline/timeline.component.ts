@@ -13,6 +13,7 @@ import {DataStore} from '../data/data-store'
 import {MonthDayViewComponent} from '../month-day-view/month-day-view.component'
 import {HomeComponent} from '../home/home.component'
 import {DataAnalyzer} from '../data/data-analyzer'
+import {DayID} from '../data/common'
 
 @Component({
   selector: 'app-timeline',
@@ -39,6 +40,10 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   private updateIntervalID?: any
 
+  private cachedQuotaRangeFirst: DayID = -1
+  private cachedQuotaRangeLast: DayID = -1
+  private cachedQuota?: Map<DayID, number>
+
   dowDates = (() => {
     const result: Date[] = []
     const start = startOfWeek(new Date())
@@ -49,6 +54,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   })()
 
   private onDataChanged = (dataStore: DataStore) => {
+    this.invalidateQuotaCache()
     this.refresh()
   }
 
@@ -145,7 +151,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   getDayIDOfCell(row: number, column: number) {
     const weekStartDayID = dateToDayID(this.weekStartDate)
-    return weekStartDayID + row * 7 + column
+    return weekStartDayID + row * this.columns.length + column
   }
 
   shouldDisplayMonth(row: number, column: number) {
@@ -173,5 +179,23 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   onDateChanged(event: any) {
     this.weekStartDate = startOfWeek(event.value)
+  }
+
+  getQuota(row: number, column: number) {
+    const viewRangeFirst = dateToDayID(this.weekStartDate)
+    const viewRangeLast = viewRangeFirst +
+      (this.rows.length * this.columns.length) - 1
+    if (this.cachedQuota === undefined ||
+      viewRangeFirst !== this.cachedQuotaRangeFirst ||
+      viewRangeLast !== this.cachedQuotaRangeLast) {
+      this.cachedQuota = this.dataStore.getQuota(viewRangeFirst, viewRangeLast)
+      this.cachedQuotaRangeFirst = viewRangeFirst
+      this.cachedQuotaRangeLast = viewRangeLast
+    }
+    return this.cachedQuota.get(this.getDayIDOfCell(row, column))
+  }
+
+  private invalidateQuotaCache() {
+    this.cachedQuota = undefined
   }
 }

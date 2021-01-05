@@ -1,0 +1,95 @@
+<div class="header">
+  <button mat-icon-button (click)="close()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+<div class="content">
+  <form class="form" (keydown)="onFormKeyDown($event)">
+    <div class="full-width-field">
+      <mat-form-field class="select right-margin">
+        <mat-select name="primaryType" [(ngModel)]="primaryType">
+          <mat-option *ngFor="let option of primaryTypeOptions"
+                      [value]="option.type">{{option.displayName}}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <div class="hfill" *ngIf="primaryType !== 'on'"></div>
+      <mat-form-field class="flex-child" *ngIf="primaryType === 'on'">
+        <mat-label>Date</mat-label>
+        <input matInput [matDatepicker]="datePicker"
+               [value]="date"
+               (dateChange)="onDateChanged($event)">
+        <button type="button" matSuffix *ngIf="date"
+                mat-icon-button (click)="clearDate()">
+          <mat-icon>close</mat-icon>
+        </button>
+        <mat-datepicker-toggle matSuffix
+                               [for]="datePicker"></mat-datepicker-toggle>
+        <mat-datepicker #datePicker></mat-datepicker>
+      </mat-form-field>
+      <mat-button-toggle-group multiple name="dayOfWeek"
+                               [(ngModel)]="dayOfWeek"
+                               *ngIf="primaryType === 'custom'">
+        <mat-button-toggle *ngFor="let option of dayOfWeekOptions"
+                           [value]="option.value">
+          {{option.dowDate | date:'E'}}
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+    <div class="full-width-field" *ngIf="primaryType !== 'on'">
+      <mat-form-field class="range-type-select right-margin">
+        <mat-select name="rangeType" [(ngModel)]="rangeType">
+          <mat-option *ngFor="let option of rangeTypeOptions"
+                      [value]="option.type">{{option.displayName}}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <div class="hfill" *ngIf="dateType === 'none'"></div>
+      <mat-form-field class="flex-child" *ngIf="dateType === 'date'">
+        <mat-label>Date</mat-label>
+        <input matInput [matDatepicker]="datePicker"
+               [value]="date"
+               (dateChange)="onDateChanged($event)">
+        <button type="button" matSuffix *ngIf="date"
+                mat-icon-button (click)="clearDate()">
+          <mat-icon>close</mat-icon>
+        </button>
+        <mat-datepicker-toggle matSuffix
+                               [for]="datePicker"></mat-datepicker-toggle>
+        <mat-datepicker #datePicker></mat-datepicker>
+      </mat-form-field>
+      <mat-form-field class="flex-child" *ngIf="dateType === 'range'">
+        <mat-label>Date Range</mat-label>
+        <mat-date-range-input [rangePicker]="dateRangePicker">
+          <input matStartDate placeholder="Start date"
+                 name="startDate" [value]="date"
+                 (dateChange)="onDateChanged($event)">
+          <input matEndDate placeholder="End date"
+                 name="endDate" [value]="endDate"
+                 (dateChange)="onEndDateChanged($event)">
+        </mat-date-range-input>
+        <button type="button" matSuffix *ngIf="date || endDate"
+                mat-icon-button (click)="clearDate()">
+          <mat-icon>close</mat-icon>
+        </button>
+        <mat-datepicker-toggle matSuffix
+                               [for]="dateRangePicker"></mat-datepicker-toggle>
+        <mat-date-range-picker #dateRangePicker></mat-date-range-picker>
+      </mat-form-field>
+    </div>
+    <div class="full-width-field">
+      <mat-form-field class="flex-child">
+        <mat-label>Quota</mat-label>
+        <input matInput name="quota" #valueInput [(ngModel)]="valueString"/>
+      </mat-form-field>
+    </div>
+  </form>
+</div>
+<div class="footer">
+  <button mat-stroked-button *ngIf="isEditing" (click)="delete()" color="warn">
+    Delete
+  </button>
+  <div class="hfill"></div>
+  <p class="key-hint-text right-margin">ctrl + enter</p>
+  <button mat-raised-button (click)="save()" color="primary">
+    Save
+  </button>
+</div>

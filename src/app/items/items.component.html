@@ -48,6 +48,9 @@
                                  maxBufferPx="1800" class="tree-viewport">
       <div *cdkVirtualFor="let node of dataSource; trackBy:trackByFn"
            [style.padding-left]="getPadding(node)"
+           [style.height]="itemHeight + 'px'"
+           [style.min-height]="itemHeight + 'px'"
+           [style.max-height]="itemHeight + 'px'"
            (dragstart)="onNodeDragStart(node, $event)"
            draggable="true"
            class="item">

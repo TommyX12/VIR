@@ -21,6 +21,7 @@ import {MatFormFieldModule} from '@angular/material/form-field'
 import {MatDatepickerModule} from '@angular/material/datepicker'
 import {MatInputModule} from '@angular/material/input'
 import {QueueModule} from '../queue/queue.module'
+import {QuotaListModule} from '../quota-list/quota-list.module'
 
 @NgModule({
   declarations: [HomeComponent],
@@ -29,7 +30,7 @@ import {QueueModule} from '../queue/queue.module'
     MatToolbarModule, MatIconModule, MatSlideToggleModule, MatSidenavModule,
     MatTabsModule, ItemsModule,
     MatTooltipModule, TimelineModule, DayViewModule, MatFormFieldModule,
-    MatDatepickerModule, MatInputModule, QueueModule,
+    MatDatepickerModule, MatInputModule, QueueModule, QuotaListModule,
   ],
 })
 export class HomeModule {

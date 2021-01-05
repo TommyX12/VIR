@@ -30,7 +30,8 @@
             *ngIf="node.effectiveDueDate !== undefined">
         Due: {{getEffectiveDueDate() | date:'MMM d'}}
       </span>
-      <span class="app-single-line-text cost-text">{{getCostText()}}</span>
+      <span class="app-single-line-text cost-text"
+            [innerHTML]="getCostHtml()"></span>
       <app-session-chip></app-session-chip>
     </div>
     <ng-content select="[suffix]"></ng-content>

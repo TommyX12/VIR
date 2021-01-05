@@ -1,0 +1,22 @@
+<div class="header">
+  <button mat-icon-button (click)="close()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+<div class="content">
+  <form class="form" (keydown)="onFormKeyDown($event)">
+    <div class="full-width-field">
+      <mat-form-field class="flex-child">
+        <mat-label>Quota</mat-label>
+        <input #quotaInput matInput name="quota" [(ngModel)]="valueString"/>
+      </mat-form-field>
+    </div>
+  </form>
+</div>
+<div class="footer">
+  <div class="hfill"></div>
+  <p class="key-hint-text right-margin">ctrl + enter</p>
+  <button mat-raised-button (click)="save()" color="primary">
+    Save
+  </button>
+</div>

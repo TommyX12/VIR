@@ -1,0 +1,28 @@
+<div class="container"
+     appDroptarget
+     [onDragReact]="onDragReact"
+     [clearDragReact]="clearDragReact"
+     (drop)="onDrop($event)">
+  <div #decorationContainer class="decoration"
+       (click)="onBodyClicked()">
+  </div>
+  <div class="inner-content">
+    <div class="body">
+      <mat-icon class="large-right-margin" color="primary">timelapse</mat-icon>
+      <span class="value large-right-margin">
+        <span>
+          {{node.value}}
+        </span>
+        <app-session-chip></app-session-chip>
+      </span>
+      <span class="description app-single-line-text right-margin"
+            [innerHTML]="node.displayHtml">
+      </span>
+    </div>
+    <div class="right-margin"></div>
+    <button mat-icon-button (click)="deleteRule()">
+      <mat-icon>close</mat-icon>
+    </button>
+    <div class="right-margin"></div>
+  </div>
+</div>

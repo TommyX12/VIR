@@ -88,6 +88,16 @@
           <app-queue #queueTab>
           </app-queue>
         </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="tab-label">
+              <mat-icon class="tab-label-icon">timelapse</mat-icon>
+              Quota
+            </span>
+          </ng-template>
+          <app-quota-list #quotaListTab>
+          </app-quota-list>
+        </mat-tab>
       </mat-tab-group>
     </mat-sidenav-content>
   </mat-sidenav-container>

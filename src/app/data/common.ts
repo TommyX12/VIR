@@ -10,6 +10,7 @@ import {
   dowOfDayID,
 } from '../util/time-util'
 import {Task} from './data-analyzer'
+import {arrayToMap} from '../util/util'
 
 export type ItemID = number
 
@@ -47,60 +48,60 @@ export enum SessionType {
  * deep-copyable.
  */
 export interface RepeatType {
-  readonly id: string
+  readonly type: string
 }
 
 export class RepeatTypeFactory<T extends RepeatType> {
   /**
-   * @param id Must match the id of the repeat type it creates.
+   * @param type Must match the type of the repeat type it creates.
    * @param create Factory function.
    */
   constructor(
-    readonly id: string,
+    readonly type: string,
     readonly create: () => T,
   ) {
   }
 }
 
 export interface DailyRepeatType extends RepeatType {
-  id: 'day'
+  readonly type: 'day'
 }
 
 export interface WeeklyRepeatType extends RepeatType {
-  id: 'week'
+  readonly type: 'week'
   dayOfWeek: number[]
 }
 
 export interface MonthlyRepeatType extends RepeatType {
-  id: 'month'
+  readonly type: 'month'
   dayOfMonth: number[]
 }
 
 export interface YearlyRepeatType extends RepeatType {
-  id: 'year'
+  readonly type: 'year'
 }
 
 export const REPEAT_TYPE_FACTORIES: RepeatTypeFactory<RepeatType>[] = [
   new RepeatTypeFactory<DailyRepeatType>('day', () => ({
-    id: 'day',
+    type: 'day',
   })),
   new RepeatTypeFactory<WeeklyRepeatType>('week', () => ({
-    id: 'week',
+    type: 'week',
     dayOfWeek: [],
   })),
   new RepeatTypeFactory<MonthlyRepeatType>('month', () => ({
-    id: 'month',
+    type: 'month',
     dayOfMonth: [],
   })),
   new RepeatTypeFactory<YearlyRepeatType>('year', () => ({
-    id: 'year',
+    type: 'year',
   })),
 ]
 
-export const REPEAT_TYPE_FACTORY_BY_ID = (() => {
+export const REPEAT_TYPE_FACTORY_BY_TYPE = (() => {
   const result = new Map<string, RepeatTypeFactory<RepeatType>>()
   REPEAT_TYPE_FACTORIES.forEach(factory => {
-    result.set(factory.id, factory)
+    result.set(factory.type, factory)
   })
   return result
 })()
@@ -225,13 +226,13 @@ export type Repeater = (firstTask: Task, itemInfo: EffectiveItemInfo,
  * TODO: refactor to reuse code between repeaters
  */
 export const DEFAULT_REPEATERS: {
-  id: string,
+  type: string,
   repeater: Repeater,
 }[] = [
   {
-    id: 'day',
-    repeater: (firstTask: Task, itemInfo: EffectiveItemInfo,
-               maxProjectionEndDate: DayID): () => Task | undefined => {
+    type: 'day',
+    repeater: (firstTask, itemInfo,
+               maxProjectionEndDate) => {
       if (firstTask.end === undefined) return () => undefined
 
       const startToEnd = (firstTask.start !== undefined ?
@@ -262,9 +263,9 @@ export const DEFAULT_REPEATERS: {
     },
   },
   {
-    id: 'week',
-    repeater: (firstTask: Task, itemInfo: EffectiveItemInfo,
-               maxProjectionEndDate: DayID): () => Task | undefined => {
+    type: 'week',
+    repeater: (firstTask, itemInfo,
+               maxProjectionEndDate) => {
       if (firstTask.end === undefined) return () => undefined
 
       const startToEnd = (firstTask.start !== undefined ?
@@ -334,9 +335,9 @@ export const DEFAULT_REPEATERS: {
     },
   },
   {
-    id: 'month',
-    repeater: (firstTask: Task, itemInfo: EffectiveItemInfo,
-               maxProjectionEndDate: DayID): () => Task | undefined => {
+    type: 'month',
+    repeater: (firstTask, itemInfo,
+               maxProjectionEndDate) => {
       if (firstTask.end === undefined) return () => undefined
 
       const startToEnd = (firstTask.start !== undefined ?
@@ -376,9 +377,9 @@ export const DEFAULT_REPEATERS: {
     },
   },
   {
-    id: 'year',
-    repeater: (firstTask: Task, itemInfo: EffectiveItemInfo,
-               maxProjectionEndDate: DayID): () => Task | undefined => {
+    type: 'year',
+    repeater: (firstTask, itemInfo,
+               maxProjectionEndDate) => {
       if (firstTask.end === undefined) return () => undefined
 
       const startToEnd = (firstTask.start !== undefined ?
@@ -417,11 +418,82 @@ export const DEFAULT_REPEATERS: {
   },
 ]
 
-export const DEFAULT_REPEATER_BY_ID = (() => {
+export const DEFAULT_REPEATER_BY_TYPE = (() => {
   const result = new Map<string, Repeater>()
-  DEFAULT_REPEATERS.forEach(({id, repeater}) => {
-    result.set(id, repeater)
+  DEFAULT_REPEATERS.forEach(({type, repeater}) => {
+    result.set(type, repeater)
   })
   return result
 })()
 
+export type QuotaRuleID = number
+
+/**
+ * NOTE: All quota rules must be interface extending this interface, and be
+ * deep-copyable.
+ */
+export interface QuotaRule {
+  readonly type: string
+  id: QuotaRuleID
+  firstDate?: DayID
+  lastDate?: DayID
+}
+
+export interface ConstantQuotaRule extends QuotaRule {
+  readonly type: 'constant'
+  value: number
+  dayOfWeek: number[] // Empty means everyday
+}
+
+export type QuotaRuleDraft<T extends QuotaRule> = { [K in keyof T]: T[K] }
+
+export function quotaRuleToDraft<T extends QuotaRule>(quotaRule: T) {
+  return deepcopy(quotaRule) as unknown as QuotaRuleDraft<T>
+}
+
+export function draftToQuotaRule<T extends QuotaRule>(draft: QuotaRuleDraft<T>) {
+  return deepcopy(draft) as unknown as T
+}
+
+export function isConstantQuotaRule(quotaRule: QuotaRule): quotaRule is ConstantQuotaRule {
+  return quotaRule.type === 'constant'
+}
+
+export const DEFAULT_QUOTA_RULE_APPLIERS: {
+  type: string,
+  apply(rule: QuotaRule, rangeFirst: DayID, rangeLast: DayID,
+        result: Map<DayID, number>),
+}[] = [
+  {
+    type: 'constant',
+    apply(rule, rangeFirst, rangeLast, result) {
+      const {firstDate, lastDate, value, dayOfWeek} = rule as ConstantQuotaRule
+
+      if (firstDate !== undefined && lastDate !== undefined && firstDate ===
+        lastDate) {
+        // Single-day rule
+        if (firstDate >= rangeFirst && firstDate <= rangeLast) {
+          result.set(firstDate, value)
+        }
+        return
+      }
+
+      const dayOfWeekSet = dayOfWeek.length === 0 ? undefined :
+        new Set(dayOfWeek)
+      if (firstDate !== undefined) {
+        rangeFirst = Math.max(rangeFirst, firstDate)
+      }
+      if (lastDate !== undefined) {
+        rangeLast = Math.min(rangeLast, lastDate)
+      }
+      for (let d = rangeFirst; d <= rangeLast; d++) {
+        if (dayOfWeekSet === undefined || dayOfWeekSet.has(dowOfDayID(d))) {
+          result.set(d, value)
+        }
+      }
+    },
+  },
+]
+
+export const DEFAULT_QUOTA_RULE_APPLIER_BY_TYPE = arrayToMap(
+  DEFAULT_QUOTA_RULE_APPLIERS, item => item.type)

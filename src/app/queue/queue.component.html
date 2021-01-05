@@ -21,6 +21,9 @@
                                  maxBufferPx="1800" class="queue-viewport">
       <div *cdkVirtualFor="let node of data; trackBy:trackByFn"
            (dragstart)="onNodeDragStart(node, $event)"
+           [style.height]="itemHeight + 'px'"
+           [style.min-height]="itemHeight + 'px'"
+           [style.max-height]="itemHeight + 'px'"
            draggable="true"
            class="item">
         <app-item [node]="node" class="item-content"

@@ -3,12 +3,20 @@ import convert from 'color-convert'
 import produce, {Draft, immerable} from 'immer'
 import {arrayMove, getOrCreate, random, removeValue} from '../util/util'
 import {
+  ConstantQuotaRule,
   DayID,
-  DEFAULT_REPEATER_BY_ID,
+  DEFAULT_QUOTA_RULE_APPLIER_BY_TYPE,
+  DEFAULT_REPEATER_BY_TYPE,
+  draftToQuotaRule,
+  isConstantQuotaRule,
   Item,
   ItemDraft,
   ItemID,
   ItemStatus,
+  QuotaRule,
+  QuotaRuleDraft,
+  QuotaRuleID,
+  quotaRuleToDraft,
   RepeatType,
   SessionType,
 } from './common'
@@ -18,6 +26,11 @@ import {dayIDNow} from '../util/time-util'
 import {Task} from './data-analyzer'
 
 export interface InvalidItemError {
+  type: string
+  message: string
+}
+
+export interface InvalidQuotaRuleError {
   type: string
   message: string
 }
@@ -178,8 +191,14 @@ export interface DataStoreState {
   queue: ItemID[]
   rootItemIDs: ItemID[]
   timelineData: DayMap<DayData>
-  nextID: number
-  startOfDayMinutes: number
+  nextItemID: number
+  nextQuotaRuleID: number
+  quotaRules: Map<QuotaRuleID, QuotaRule>
+  quotaRuleOrder: QuotaRuleID[]
+  settings: {
+    startOfDayMinutes: number
+    quotaRuleAutoDeleteDays: number
+  }
 }
 
 export interface DataStoreAutoCompleterData {
@@ -382,10 +401,16 @@ export class DataStore {
   private _state: DataStoreState = {
     items: new Map<ItemID, Item>(),
     queue: [],
-    nextID: 1,
+    nextItemID: 1,
+    nextQuotaRuleID: 1,
     rootItemIDs: [],
     timelineData: new DayMap<DayData>(),
-    startOfDayMinutes: 0,
+    quotaRules: new Map<QuotaRuleID, QuotaRule>(),
+    quotaRuleOrder: [],
+    settings: {
+      startOfDayMinutes: 0,
+      quotaRuleAutoDeleteDays: 7,
+    },
   }
 
   private undoHistory: DataStoreState[] = []
@@ -401,10 +426,10 @@ export class DataStore {
 
   private addItemReducer = (draft: Draft<DataStoreState>,
                             itemDraft: ItemDraft) => {
-    const id = draft.nextID
+    const id = draft.nextItemID
     const item = itemDraft.toNewItem(id)
-    draft.nextID++
-    if (draft.nextID <= id) {
+    draft.nextItemID++
+    if (draft.nextItemID <= id) {
       throw new Error('Item ID overflow')
     }
     if (draft.items.has(item.id)) {
@@ -555,7 +580,7 @@ export class DataStore {
       return false
     }
 
-    const repeater = DEFAULT_REPEATER_BY_ID.get(repeat.id)
+    const repeater = DEFAULT_REPEATER_BY_TYPE.get(repeat.type)
     if (repeater === undefined) {
       item.status = ItemStatus.COMPLETED
       return false
@@ -766,6 +791,57 @@ export class DataStore {
     }
   }
 
+  private addQuotaRuleReducer = (draft: Draft<DataStoreState>,
+                                 quotaRuleDraft: QuotaRuleDraft<QuotaRule>) => {
+    const id = draft.nextQuotaRuleID
+    const quotaRule = draftToQuotaRule(quotaRuleDraft)
+    quotaRule.id = id
+    draft.nextQuotaRuleID++
+    if (draft.nextQuotaRuleID <= id) {
+      throw new Error('QuotaRule ID overflow')
+    }
+    if (draft.quotaRules.has(quotaRule.id)) {
+      throw new Error(`QuotaRule with ID ${quotaRule.id} already exists`)
+    }
+    draft.quotaRules.set(quotaRule.id, quotaRule)
+    draft.quotaRuleOrder.push(quotaRule.id)
+  }
+
+  private updateQuotaRuleReducer = (draft: Draft<DataStoreState>,
+                                    quotaRuleDraft: QuotaRuleDraft<QuotaRule>) => {
+    const quotaRuleID = quotaRuleDraft.id
+    const quotaRule = draftToQuotaRule(quotaRuleDraft)
+    if (!draft.quotaRules.has(quotaRuleID)) {
+      throw new Error(`QuotaRule with ID ${quotaRuleID} does not exist`)
+    }
+
+    draft.quotaRules.set(quotaRuleID, quotaRule)
+  }
+
+  private removeQuotaRuleReducer = (draft: Draft<DataStoreState>,
+                                    quotaRuleID: QuotaRuleID) => {
+    draft.quotaRules.delete(quotaRuleID)
+    removeValue(draft.quotaRuleOrder, quotaRuleID)
+  }
+
+  private removeQuotaRulesReducer = (draft: Draft<DataStoreState>,
+                                     quotaRuleIDs: QuotaRuleID[]) => {
+    quotaRuleIDs.forEach(quotaRuleID => {
+      draft.quotaRules.delete(quotaRuleID)
+    })
+    const quotaRuleIDSet = new Set(quotaRuleIDs)
+    draft.quotaRuleOrder =
+      draft.quotaRuleOrder.filter(value => !quotaRuleIDSet.has(value))
+  }
+
+  private quotaRuleMoveReducer = (draft: Draft<DataStoreState>,
+                                  quotaRuleID: QuotaRuleID,
+                                  index: number) => {
+    const oldIndex = draft.quotaRuleOrder.indexOf(quotaRuleID)
+    if (oldIndex < 0) return
+    arrayMove(draft.quotaRuleOrder, oldIndex, index)
+  }
+
   /**
    * NOTE: This method will always return a new array.
    */
@@ -833,6 +909,59 @@ export class DataStore {
       this.addSession(dayIDNow(), SessionType.COMPLETED, 1, 3)
       this.addSession(dayIDNow(), SessionType.PROJECTED, 2, 4)
       this.addSession(dayIDNow() + 1, SessionType.SCHEDULED, 3, 6)
+
+      this.addQuotaRule({
+        type: 'constant',
+        id: -1,
+        value: 1,
+        dayOfWeek: [],
+      } as ConstantQuotaRule)
+
+      this.addQuotaRule({
+        type: 'constant',
+        id: -1,
+        value: 2,
+        dayOfWeek: [6, 0],
+      } as ConstantQuotaRule)
+
+      this.addQuotaRule({
+        type: 'constant',
+        id: -1,
+        value: 2,
+        dayOfWeek: [6, 1],
+      } as ConstantQuotaRule)
+
+      this.addQuotaRule({
+        type: 'constant',
+        id: -1,
+        value: 2,
+        dayOfWeek: [4, 1, 2, 3, 5],
+      } as ConstantQuotaRule)
+
+      this.addQuotaRule({
+        type: 'constant',
+        id: -1,
+        value: 2,
+        firstDate: dayIDNow() + 1,
+        lastDate: dayIDNow() + 4,
+        dayOfWeek: [1, 3, 5],
+      } as ConstantQuotaRule)
+
+      this.addQuotaRule({
+        type: 'constant',
+        id: -1,
+        value: 2,
+        lastDate: dayIDNow() + 4,
+        dayOfWeek: [1, 3, 5],
+      } as ConstantQuotaRule)
+
+      this.addQuotaRule({
+        type: 'constant',
+        id: -1,
+        value: 2,
+        firstDate: dayIDNow() + 4,
+        dayOfWeek: [1, 3, 5],
+      } as ConstantQuotaRule)
     })
     this.clearUndo()
   }
@@ -959,15 +1088,19 @@ export class DataStore {
       }
     } else {
       if (oldStatus !== newStatus) {
+        const subtree = this.getSubtreeItems(itemID)
         if (newStatus === ItemStatus.ACTIVE) {
           this._state =
             produce(this._state, draft => {
-              this.smartInsertItemToQueueReducer(draft, itemID)
+              this.removeItemsFromQueueReducer(draft, subtree)
+              subtree.forEach(itemID => {
+                this.smartInsertItemToQueueReducer(draft, itemID)
+              })
             })
         } else {
           this._state =
             produce(this._state, draft => {
-              this.removeItemFromQueueReducer(draft, itemID)
+              this.removeItemsFromQueueReducer(draft, subtree)
             })
         }
       }
@@ -1067,6 +1200,126 @@ export class DataStore {
     this._state =
       produce(this._state, draft => {
         this.queueMoveReducer(draft, itemID, index)
+      })
+    this.notify()
+  }
+
+  public addQuotaRule(quotaRuleDraft: QuotaRuleDraft<QuotaRule>) {
+    this.validateQuotaRuleDraft(quotaRuleDraft)
+    this.pushUndo()
+    this._state =
+      produce(this._state, draft => {
+        this.addQuotaRuleReducer(draft, quotaRuleDraft)
+      })
+    this.cleanUpQuotaRules()
+    this.notify()
+  }
+
+  public getQuotaRule(quotaRuleID: QuotaRuleID) {
+    return this._state.quotaRules.get(quotaRuleID)
+  }
+
+  public updateQuotaRule(quotaRuleDraft: QuotaRuleDraft<QuotaRule>) {
+    this.validateQuotaRuleDraft(quotaRuleDraft)
+    this.pushUndo()
+    this._state =
+      produce(this._state, draft => {
+        this.updateQuotaRuleReducer(draft, quotaRuleDraft)
+      })
+    this.cleanUpQuotaRules()
+    this.notify()
+  }
+
+  public removeQuotaRule(quotaRuleID: QuotaRuleID) {
+    this.pushUndo()
+    this._state =
+      produce(this._state, draft => {
+        this.removeQuotaRuleReducer(draft, quotaRuleID)
+      })
+    this.cleanUpQuotaRules()
+    this.notify()
+  }
+
+  public quickEditQuotaRule(dayID: DayID, value: number) {
+    const numQuotaRules = this.state.quotaRuleOrder.length
+    const tempMap = new Map<DayID, number>()
+    for (let i = numQuotaRules - 1; i >= 0; i--) {
+      const ruleID = this.state.quotaRuleOrder[i]
+      const rule = this.getQuotaRule(ruleID)
+      if (rule === undefined) continue
+      if (rule.firstDate !== undefined && rule.lastDate !== undefined &&
+        rule.firstDate === rule.lastDate && isConstantQuotaRule(rule) &&
+        rule.firstDate === dayID) {
+        // The quota for the given day is affected by a single-day rule.
+        const draft = quotaRuleToDraft(rule)
+        draft.value = value
+        this.batchEdit(it => {
+          this.updateQuotaRule(draft)
+          this.quotaRuleMoveToIndex(ruleID, numQuotaRules)
+        })
+        return
+      }
+    }
+    const draft: QuotaRuleDraft<ConstantQuotaRule> = {
+      type: 'constant',
+      id: -1,
+      firstDate: dayID,
+      lastDate: dayID,
+      value,
+      dayOfWeek: [],
+    }
+    this.addQuotaRule(draft)
+  }
+
+  private cleanUpQuotaRules() {
+    const rulesToDelete: QuotaRuleID[] = []
+    const thresholdDayID = this.getCurrentDayID() -
+      this.state.settings.quotaRuleAutoDeleteDays
+    this.state.quotaRules.forEach(quotaRule => {
+      if (quotaRule.lastDate !== undefined && quotaRule.lastDate <
+        thresholdDayID) {
+        rulesToDelete.push(quotaRule.id)
+      }
+    })
+    this._state = produce(this._state, draft => {
+      this.removeQuotaRulesReducer(draft, rulesToDelete)
+    })
+  }
+
+  /**
+   * Move quotaRule to before a specific anchor on quotaRuleOrder.
+   * NOTE: This function searches for quotaRuleID using the current state.
+   * Keep this in mind before chaining reducers on drafts.
+   */
+  public quotaRuleMoveToBefore(quotaRuleID: QuotaRuleID,
+                               anchorQuotaRuleID: QuotaRuleID) {
+    const anchorIndex = this.state.quotaRuleOrder.indexOf(anchorQuotaRuleID)
+    if (anchorIndex < 0) return
+    this.quotaRuleMoveToIndex(quotaRuleID, anchorIndex)
+  }
+
+  /**
+   * Move quotaRule to after a specific anchor on quotaRuleOrder.
+   * NOTE: This function searches for quotaRuleID using the current state.
+   * Keep this in mind before chaining reducers on drafts.
+   */
+  public quotaRuleMoveToAfter(quotaRuleID: QuotaRuleID,
+                              anchorQuotaRuleID: QuotaRuleID) {
+    const anchorIndex = this.state.quotaRuleOrder.indexOf(anchorQuotaRuleID)
+    if (anchorIndex < 0) return
+    this.quotaRuleMoveToIndex(quotaRuleID, anchorIndex + 1)
+  }
+
+  /**
+   * Move quotaRule to before the quotaRule pointed to by the given index.
+   * NOTE: The quotaRule pointed to by the given index is considered *before*
+   * moving the old quotaRule.
+   */
+  public quotaRuleMoveToIndex(quotaRuleID: QuotaRuleID, index: number) {
+    this.pushUndo()
+    this._state =
+      produce(this._state, draft => {
+        this.quotaRuleMoveReducer(draft, quotaRuleID, index)
       })
     this.notify()
   }
@@ -1415,6 +1668,50 @@ export class DataStore {
    * Get the DayID of today, taking into account the "start of day" setting.
    */
   getCurrentDayID() {
-    return dayIDNow(this.state.startOfDayMinutes)
+    return dayIDNow(this.state.settings.startOfDayMinutes)
+  }
+
+  /**
+   * TODO optimize: use draw-based method instead of query-based method
+   */
+  getQuota(rangeFirst: DayID, rangeLast: DayID) {
+    if (rangeFirst > rangeLast) {
+      return new Map<DayID, number>()
+    }
+
+    const result = new Map<DayID, number>()
+    for (let d = rangeFirst; d <= rangeLast; d++) {
+      result.set(d, 0)
+    }
+
+    for (let i = 0; i < this.state.quotaRuleOrder.length; i++) {
+      const quotaRule = this.getQuotaRule(this.state.quotaRuleOrder[i])
+      if (quotaRule === undefined) continue
+
+      const applier = DEFAULT_QUOTA_RULE_APPLIER_BY_TYPE.get(quotaRule.type)
+      if (applier === undefined) continue
+
+      applier.apply(quotaRule, rangeFirst, rangeLast, result)
+    }
+
+    return result
+  }
+
+  validateQuotaRuleDraft(quotaRuleDraft: QuotaRuleDraft<QuotaRule>) {
+    if (quotaRuleDraft.firstDate !== undefined && quotaRuleDraft.lastDate !==
+      undefined && quotaRuleDraft.firstDate > quotaRuleDraft.lastDate) {
+      throw {
+        type: 'invalidRange',
+        message: 'Error: Invalid range',
+      }
+    }
+    if (isConstantQuotaRule(quotaRuleDraft)) {
+      if (quotaRuleDraft.value < 0) {
+        throw {
+          type: 'invalidValue',
+          message: 'Error: Invalid quota value',
+        }
+      }
+    }
   }
 }

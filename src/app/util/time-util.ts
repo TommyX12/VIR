@@ -1,4 +1,5 @@
 import {DayID} from '../data/common'
+import {MatDatepickerInputEvent} from '@angular/material/datepicker'
 
 export const MS_PER_DAY = 86400000
 
@@ -93,4 +94,43 @@ export function parseSpecialDate(text: string,
   // TODO add more features here
 
   return undefined
+}
+
+export function parseMatDatePicker(event: MatDatepickerInputEvent<unknown, unknown>): DayID | undefined {
+  let dayID = parseSpecialDate(
+    (event.targetElement as any).value || '', dayIDNow())
+  if (dayID === undefined) {
+    const date = event.value
+    if (date) {
+      dayID = dateToDayID(date as Date)
+    }
+  }
+  return dayID
+}
+
+const DOW_TO_SHORT_DISPLAY_NAME = [
+  'Sun',
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
+  'Sat',
+]
+
+export function getShowrtDOWDisplayName(dow: number) {
+  if (dow >= 0 && dow < DOW_TO_SHORT_DISPLAY_NAME.length) {
+    return DOW_TO_SHORT_DISPLAY_NAME[dow]
+  }
+  return ''
+}
+
+export function getLongDateDisplayName(date: Date) {
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric', month: 'long', day: 'numeric',
+  })
+}
+
+export function getLongDayIDDisplayName(dayID: DayID) {
+  return getLongDateDisplayName(dayIDToDate(dayID))
 }

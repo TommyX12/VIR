@@ -11,6 +11,9 @@
         {{getDate() | date:getDateFormat()}}
       </p>
     </div>
+    <span class="quota-text" [innerHTML]="getQuotaHtml()"
+          (click)="editQuota()">
+    </span>
     <mat-icon class="icon-button" inline (click)="onAddButtonClicked($event)"
               [matMenuTriggerFor]="addMenu">
       add
@@ -27,7 +30,7 @@
     </mat-menu>
   </div>
   <div class="progress-bar">
-    <div class="progress-bar-filled"></div>
+    <div class="progress-bar-filled" [style.width]="progress * 100 + '%'"></div>
   </div>
   <div class="content">
     <div *ngFor="let session of sessions" class="session"

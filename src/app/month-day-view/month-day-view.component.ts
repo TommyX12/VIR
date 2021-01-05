@@ -15,6 +15,7 @@ import {
 import {DayViewDialogComponent} from '../day-view-dialog/day-view-dialog.component'
 import {HomeComponent} from '../home/home.component'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
+import {QuickQuotaEditComponent} from '../quick-quota-edit/quick-quota-edit.component'
 
 interface Session {
   scheduled: boolean
@@ -36,6 +37,7 @@ export class MonthDayViewComponent implements OnInit {
   @Input() dayID = dayIDNow()
   @Input() todayDayID = dayIDNow()
   @Input() forceDisplayMonth = false
+  @Input() quota?: number
   @Input() home?: HomeComponent
 
   @ViewChild('background') backgroundRef?: ElementRef
@@ -43,6 +45,8 @@ export class MonthDayViewComponent implements OnInit {
   sessions: Session[] = []
 
   private _dayData?: DayData
+
+  totalCount = 0
 
   constructor(
     private readonly dataStore: DataStore,
@@ -66,6 +70,7 @@ export class MonthDayViewComponent implements OnInit {
     dayData = dayData || this._dayData
     if (dayData === undefined) return
     this.sessions = []
+    this.totalCount = 0
     dayData.sessions.forEach((sessions, type) => {
       sessions.forEach((count, itemID) => {
         const item = this.dataStore.getItem(itemID)
@@ -80,6 +85,8 @@ export class MonthDayViewComponent implements OnInit {
             done: type === SessionType.COMPLETED,
             itemDone: item.status === ItemStatus.COMPLETED,
           })
+
+          this.totalCount += count
         }
       })
     })
@@ -148,6 +155,19 @@ export class MonthDayViewComponent implements OnInit {
         isEditing: false,
         dayID: this.dayID,
         type,
+      },
+      hasBackdrop: true,
+      disableClose: false,
+      autoFocus: false,
+    })
+  }
+
+  editQuota() {
+    const dialogRef = this.dialog.open(QuickQuotaEditComponent, {
+      width: QuickQuotaEditComponent.DIALOG_WIDTH,
+      data: {
+        dayID: this.dayID,
+        initialValue: this.quota || 0,
       },
       hasBackdrop: true,
       disableClose: false,
@@ -281,5 +301,20 @@ export class MonthDayViewComponent implements OnInit {
 
   showInQueue(session: Session) {
     this.home?.showInQueue(session.item.id)
+  }
+
+  getQuotaHtml() {
+    let result = `${this.totalCount}`
+    if (this.quota !== undefined) {
+      result += ` / <b>${this.quota}</b>`
+    }
+    return result
+  }
+
+  get progress() {
+    if (this.quota === undefined || this.quota <= 0) {
+      return 0
+    }
+    return Math.min(Math.max(this.totalCount / this.quota, 0), 1)
   }
 }

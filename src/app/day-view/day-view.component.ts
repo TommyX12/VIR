@@ -25,6 +25,7 @@ import {HomeComponent} from '../home/home.component'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
 import {DataAnalyzer} from '../data/data-analyzer'
 import {MatSnackBar} from '@angular/material/snack-bar'
+import {QuickQuotaEditComponent} from '../quick-quota-edit/quick-quota-edit.component'
 
 interface Session {
   canItemRepeat: boolean
@@ -82,6 +83,9 @@ export class DayViewComponent implements OnInit, OnDestroy {
 
   private dataStoreChangeSubscription?: Subscription
   private dataAnalyzerChangeSubscription?: Subscription
+
+  quota = 0
+  totalCount = 0
 
   private onDataChanged = (dataStore: DataStore) => {
     this.refresh()
@@ -284,6 +288,7 @@ export class DayViewComponent implements OnInit, OnDestroy {
   private refresh() {
     this.sessions = new Map<SessionType, Session[]>()
     const dayData = this.dataStore.getDayData(this.dayID)
+    this.totalCount = 0
     dayData.sessions.forEach((sessions, type) => {
       sessions.forEach((count, itemID) => {
         const item = this.dataStore.getItem(itemID)
@@ -300,6 +305,8 @@ export class DayViewComponent implements OnInit, OnDestroy {
             done: type === SessionType.COMPLETED,
             itemDone: item.status === ItemStatus.COMPLETED,
           })
+
+          this.totalCount += count
         }
       })
     })
@@ -317,6 +324,9 @@ export class DayViewComponent implements OnInit, OnDestroy {
         group.count += session.count
       })
     })
+
+    this.quota =
+      this.dataStore.getQuota(this.dayID, this.dayID).get(this.dayID) || 0
   }
 
   toggleItemDone(session: Session) {
@@ -346,5 +356,29 @@ export class DayViewComponent implements OnInit, OnDestroy {
 
   showInQueue(session: Session) {
     this.home?.showInQueue(session.item.id)
+  }
+
+  getQuotaHtml() {
+    return `${this.totalCount} / <b>${this.quota}</b>`
+  }
+
+  get progress() {
+    if (this.quota <= 0) {
+      return 0
+    }
+    return Math.min(Math.max(this.totalCount / this.quota, 0), 1)
+  }
+
+  editQuota() {
+    const dialogRef = this.dialog.open(QuickQuotaEditComponent, {
+      width: QuickQuotaEditComponent.DIALOG_WIDTH,
+      data: {
+        dayID: this.dayID,
+        initialValue: this.quota,
+      },
+      hasBackdrop: true,
+      disableClose: false,
+      autoFocus: false,
+    })
   }
 }

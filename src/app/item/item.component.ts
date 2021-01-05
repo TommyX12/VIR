@@ -163,9 +163,9 @@ export class ItemComponent implements OnInit {
       dayIDToDate(this.node.effectiveDueDate) : undefined
   }
 
-  getCostText() {
+  getCostHtml() {
     if (this.node.progress !== undefined) {
-      return `${this.node.progress}/${this.node.plannedProgress}/${this.node.effectiveCost}`
+      return `${this.node.progress} / ${this.node.plannedProgress} / ${this.node.effectiveCost}`
     }
     return `${this.node.effectiveCost}`
   }

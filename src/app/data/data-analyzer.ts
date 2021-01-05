@@ -74,8 +74,8 @@ export class DataAnalyzer {
   }
 
   private registerDefaultRepeaters() {
-    for (const {id, repeater} of DEFAULT_REPEATERS) {
-      this.repeaters.set(id, repeater)
+    for (const {type, repeater} of DEFAULT_REPEATERS) {
+      this.repeaters.set(type, repeater)
     }
   }
 
@@ -268,10 +268,10 @@ export class DataAnalyzer {
       return
     }
 
-    const repeater = this.repeaters.get(itemInfo.repeat.id)
+    const repeater = this.repeaters.get(itemInfo.repeat.type)
     if (repeater === undefined) {
       console.log(
-        `WARNING: Repeater for repeat type ${itemInfo.repeat.id} not found`)
+        `WARNING: Repeater for repeat type ${itemInfo.repeat.type} not found`)
       return
     }
 

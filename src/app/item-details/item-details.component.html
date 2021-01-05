@@ -109,7 +109,7 @@
         </mat-button-toggle>
       </mat-button-toggle-group>
     </div>
-    <div class="full-width-field" *ngIf="repeatEnabled">
+    <div class="full-width-field bottom-margin" *ngIf="repeatEnabled">
       <mat-checkbox name="repeatOnCompletion"
                     [(ngModel)]="draft.repeatOnCompletion">
         Repeat on completion
@@ -171,6 +171,11 @@
   </form>
 </div>
 <div class="footer">
+  <button mat-stroked-button *ngIf="!isAddingNewItem" (click)="delete()"
+          color="warn"
+          class="right-margin">
+    Delete
+  </button>
   <p *ngIf="!isAddingNewItem" class="id-text">ID: {{draft.id}}</p>
   <div class="hfill"></div>
   <p class="key-hint-text right-margin">ctrl + enter</p>
