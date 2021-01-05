@@ -4,6 +4,7 @@ import produce, {Draft, immerable} from 'immer'
 import {arrayMove, getOrCreate, random, removeValue} from '../util/util'
 import {
   DayID,
+  DEFAULT_REPEATER_BY_ID,
   Item,
   ItemDraft,
   ItemID,
@@ -14,6 +15,7 @@ import {
 import {Injectable} from '@angular/core'
 import {BehaviorSubject} from 'rxjs'
 import {dayIDNow} from '../util/time-util'
+import {Task} from './data-analyzer'
 
 export interface InvalidItemError {
   type: string
@@ -177,6 +179,7 @@ export interface DataStoreState {
   rootItemIDs: ItemID[]
   timelineData: DayMap<DayData>
   nextID: number
+  startOfDayMinutes: number
 }
 
 export interface DataStoreAutoCompleterData {
@@ -369,7 +372,9 @@ export interface EffectiveItemInfo {
   repeat?: RepeatType
   repeatEndDate?: DayID
   repeatInterval: number
+  repeatOnCompletion: boolean
   hasAncestorRepeat: boolean
+  hasActiveAncestorRepeat: boolean
 }
 
 @Injectable()
@@ -380,6 +385,7 @@ export class DataStore {
     nextID: 1,
     rootItemIDs: [],
     timelineData: new DayMap<DayData>(),
+    startOfDayMinutes: 0,
   }
 
   private undoHistory: DataStoreState[] = []
@@ -435,6 +441,12 @@ export class DataStore {
 
     itemDraft.applyToItem(item)
 
+    // Apply status change to children
+    if (oldStatus !== newStatus) {
+      this.setDraftSubtreeStatus(draft, item, newStatus)
+    }
+
+    // Change parent
     if (newParentID !== oldParentID || options.anchor !== undefined) {
       // Remove from old
       if (oldParentID === undefined) {
@@ -511,8 +523,91 @@ export class DataStore {
   }
 
   /**
-   * NOTE: This function searches for items using the current state, not in the
-   * given draft. Keep this in mind before chaining reducers on drafts.
+   * Returns whether the repeat is successful (or simply marked as done)
+   */
+  private repeatSubtreeReducer = (draft: Draft<DataStoreState>,
+                                  itemID: ItemID,
+                                  subtree: ItemID[]): boolean => {
+    const item = draft.items.get(itemID)
+    if (item === undefined) return false
+
+    const firstTask: Task = {
+      cost: item.cost, end: item.dueDate, itemID, start: item.deferDate,
+    }
+    if (firstTask.end === undefined) {
+      item.status = ItemStatus.COMPLETED
+      return false
+    }
+
+    // Move start and end to today
+    let repeatOffset = 0
+    if (item.repeatOnCompletion) {
+      repeatOffset = this.getCurrentDayID() - firstTask.end
+      firstTask.end += repeatOffset
+      if (firstTask.start !== undefined) {
+        firstTask.start += repeatOffset
+      }
+    }
+
+    const repeat = item.repeat
+    if (repeat === undefined) {
+      item.status = ItemStatus.COMPLETED
+      return false
+    }
+
+    const repeater = DEFAULT_REPEATER_BY_ID.get(repeat.id)
+    if (repeater === undefined) {
+      item.status = ItemStatus.COMPLETED
+      return false
+    }
+
+    const nextTask = repeater(
+      firstTask, this.getEffectiveInfo(item), dayIDNow() + 100000000)()
+
+    if (nextTask === undefined) {
+      item.status = ItemStatus.COMPLETED
+      return false
+    }
+
+    const count = subtree.length
+    for (let i = 0; i < count; i++) {
+      const subtreeItem = draft.items.get(subtree[i])
+      if (subtreeItem === undefined) continue
+
+      subtreeItem.status = ItemStatus.ACTIVE
+      const startOffset = subtreeItem.deferDate === undefined ? undefined :
+        firstTask.end - repeatOffset - subtreeItem.deferDate
+      const endOffset = subtreeItem.dueDate === undefined ? 0 :
+        firstTask.end - repeatOffset - subtreeItem.dueDate
+
+      if (nextTask.end === undefined) {
+        subtreeItem.deferDate = undefined
+        subtreeItem.dueDate = undefined
+        continue
+      }
+
+      subtreeItem.deferDate =
+        startOffset === undefined ? undefined : nextTask.end - startOffset
+      subtreeItem.dueDate =
+        endOffset === undefined ? undefined : nextTask.end - endOffset
+
+      if (nextTask.start !== undefined) {
+        if (subtreeItem.deferDate !== undefined) {
+          subtreeItem.deferDate =
+            Math.max(subtreeItem.deferDate, nextTask.start)
+        }
+        if (subtreeItem.dueDate !== undefined) {
+          subtreeItem.dueDate = Math.max(subtreeItem.dueDate, nextTask.start)
+        }
+      }
+    }
+
+    return true
+  }
+
+  /**
+   * NOTE: This function searches for items in the given draft.
+   * This is all thanks to the draft queue containing only primitives.
    */
   private smartInsertItemToQueueReducer = (draft: Draft<DataStoreState>,
                                            itemID: ItemID) => {
@@ -521,7 +616,7 @@ export class DataStore {
     const item = this.getItem(itemID)
     if (item === undefined) return
 
-    let queue = this.state.queue
+    let queue = draft.queue
     let queueSize = queue.length
 
     let start = 0
@@ -536,6 +631,8 @@ export class DataStore {
       //   }
       // }
     } else {
+      let foundLowerBound = false
+      let foundUpperBound = false
       start = 0
       end = 0
       for (let i = 0; i < queueSize; ++i) {
@@ -544,14 +641,21 @@ export class DataStore {
         if (dueDate < selfDueDate) {
           start = i + 1
           end = start
-        } else if (dueDate > selfDueDate) break
+        } else if (!foundLowerBound) { // dueDate === selfDueDate
+          start = i
+          end = start
+          foundLowerBound = true
+        }
       }
-      for (let i = queueSize - 1; i >= 0; --i) {
+      for (let i = queueSize - 1; i > start; --i) {
         const dueDate = this.getEffectiveDueDate(this.getItem(queue[i])!)
         if (dueDate === undefined) continue
         if (dueDate > selfDueDate) {
           end = i
-        } else if (dueDate < selfDueDate) break
+        } else if (!foundUpperBound) { // dueDate === selfDueDate
+          end = i + 1
+          foundUpperBound = true
+        }
       }
     }
 
@@ -559,12 +663,13 @@ export class DataStore {
       draft.queue.splice(start, 0, itemID)
       return
     } else {
-      const selfScore = this.getLexicographicScore(itemID)
+      const scores = this.getLexicographicScores()
+      const selfScore = scores.get(itemID) || []
       // TODO draft.items.get(parentID)!.childrenIDs.indexOf(itemID)
       let candidate: number | undefined = undefined
       let candidateScore: number[] | undefined = undefined
       for (let i = start; i < end; ++i) {
-        const score = this.getLexicographicScore(queue[i])
+        const score = scores.get(queue[i]) || []
         if (lexicographicLessThan(score, selfScore)) {
           if (candidateScore === undefined ||
             lexicographicLessThan(candidateScore, score)) {
@@ -587,6 +692,12 @@ export class DataStore {
   private removeItemFromQueueReducer = (draft: Draft<DataStoreState>,
                                         itemID: ItemID) => {
     removeValue(draft.queue, itemID)
+  }
+
+  private removeItemsFromQueueReducer = (draft: Draft<DataStoreState>,
+                                         itemIDs: ItemID[]) => {
+    const itemIDSet = new Set(itemIDs)
+    draft.queue = draft.queue.filter(value => !itemIDSet.has(value))
   }
 
   private autoAdjustQueueReducer = (draft: Draft<DataStoreState>) => {
@@ -623,6 +734,35 @@ export class DataStore {
     const count = datedIndices.length
     for (let i = 0; i < count; ++i) {
       draft.queue[datedIndices[i]] = data[i].itemID
+    }
+  }
+
+  /**
+   * NOTE: This function searches for some items using the current state.
+   * Keep this in mind before chaining reducers on drafts.
+   */
+  private updateAncestorChainStatisticsReducer = (draft: Draft<DataStoreState>,
+                                                  initialItemID: ItemID) => {
+    let lastUpdatedItemID: ItemID | undefined = undefined
+    let itemID: ItemID | undefined = initialItemID
+    while (itemID !== undefined) {
+      const item = draft.items.get(itemID)
+      if (item === undefined) break
+
+      item.effectiveCost = 0
+      const childrenIDs = item.childrenIDs
+      const numChildren = childrenIDs.length
+      for (let j = 0; j < numChildren; j++) {
+        const childID = childrenIDs[j]
+        const child = (childID === lastUpdatedItemID ?
+          draft.items.get(childID) : this.getItem(childID))
+        if (child === undefined) continue
+        item.effectiveCost += child.effectiveCost
+      }
+      item.effectiveCost = Math.max(item.effectiveCost, item.cost)
+
+      lastUpdatedItemID = itemID
+      itemID = item.parentID
     }
   }
 
@@ -758,15 +898,23 @@ export class DataStore {
           this.smartInsertItemToQueueReducer(draft, id)
         })
     }
+    this._state =
+      produce(this._state, draft => {
+        this.updateAncestorChainStatisticsReducer(draft, id)
+      })
     this.notify()
   }
 
+  /**
+   * Returns whether the item repeated.
+   */
   public updateItem(itemDraft: ItemDraft, options: UpdateItemOptions = {},
                     skipValidation: boolean = false) {
     if (!skipValidation) {
       this.validateItemDraft(itemDraft, false)
     }
     this.pushUndo()
+    let repeated = false
     const itemID = itemDraft.id
     const item = this.getItem(itemID)
     if (item === undefined) {
@@ -774,17 +922,34 @@ export class DataStore {
     }
     const oldStatus = item.status
     const newStatus = itemDraft.status
+    const oldParentID = item.parentID
+    const newParentID = itemDraft.parentID
+    const shouldRepeat = (
+      oldStatus !== ItemStatus.COMPLETED &&
+      newStatus === ItemStatus.COMPLETED &&
+      itemDraft.repeat !== undefined &&
+      !this.getHasAncestorRepeat(item)
+    )
     this._state = produce(
       this._state,
       draft => {
         this.updateItemReducer(draft, itemDraft, options)
       },
     )
-    if (oldStatus !== newStatus) {
-      if (newStatus === ItemStatus.ACTIVE) {
+    if (shouldRepeat) {
+      const subtree = this.getSubtreeItems(itemID)
+      let repeatSuccessful = false
+      this._state = produce(this._state, draft => {
+        repeatSuccessful = this.repeatSubtreeReducer(draft, itemID, subtree)
+      })
+      if (repeatSuccessful) {
+        repeated = true
         this._state =
           produce(this._state, draft => {
-            this.smartInsertItemToQueueReducer(draft, itemID)
+            this.removeItemsFromQueueReducer(draft, subtree)
+            subtree.forEach(itemID => {
+              this.smartInsertItemToQueueReducer(draft, itemID)
+            })
           })
       } else {
         this._state =
@@ -792,12 +957,33 @@ export class DataStore {
             this.removeItemFromQueueReducer(draft, itemID)
           })
       }
+    } else {
+      if (oldStatus !== newStatus) {
+        if (newStatus === ItemStatus.ACTIVE) {
+          this._state =
+            produce(this._state, draft => {
+              this.smartInsertItemToQueueReducer(draft, itemID)
+            })
+        } else {
+          this._state =
+            produce(this._state, draft => {
+              this.removeItemFromQueueReducer(draft, itemID)
+            })
+        }
+      }
     }
-    this._state =
-      produce(this._state, draft => {
-        this.autoAdjustQueueReducer(draft)
+    if (oldParentID !== newParentID && oldParentID !== undefined) {
+      this._state = produce(this._state, draft => {
+        this.updateAncestorChainStatisticsReducer(draft, oldParentID)
       })
+    }
+    this._state = produce(this._state, draft => {
+      this.updateAncestorChainStatisticsReducer(draft, itemID)
+      this.autoAdjustQueueReducer(draft)
+    })
     this.notify()
+
+    return repeated
   }
 
   public removeItem(itemID: ItemID) {
@@ -815,6 +1001,10 @@ export class DataStore {
 
   public getItem(itemID: ItemID) {
     return this._state.items.get(itemID)
+  }
+
+  public hasItem(itemID: ItemID) {
+    return this._state.items.has(itemID)
   }
 
   private editSession(dayID: DayID, type: SessionType, itemID: ItemID,
@@ -1034,6 +1224,17 @@ export class DataStore {
     return result
   }
 
+  getHasAncestorRepeat(item: Item): boolean {
+    let i: Item | undefined = item
+    while (i !== undefined && i.parentID !== undefined) {
+      i = this.getItem(i.parentID)
+      if (i !== undefined && i.repeat !== undefined) {
+        return true
+      }
+    }
+    return false
+  }
+
   getEffectiveInfo(item: Item): EffectiveItemInfo {
     let i: Item | undefined = item
     let result: EffectiveItemInfo = {
@@ -1042,8 +1243,11 @@ export class DataStore {
       repeat: i.repeat,
       repeatEndDate: i.repeatEndDate,
       repeatInterval: i.repeatInterval,
+      repeatOnCompletion: i.repeatOnCompletion,
       hasAncestorRepeat: false,
+      hasActiveAncestorRepeat: false,
     }
+    let minParentDueDate: DayID | undefined = undefined
     while (i !== undefined && i.parentID !== undefined) {
       i = this.getItem(i.parentID)
       if (i !== undefined && i.deferDate !== undefined) {
@@ -1059,13 +1263,28 @@ export class DataStore {
         } else {
           result.dueDate = Math.min(result.dueDate, i.dueDate)
         }
+        if (minParentDueDate === undefined) {
+          minParentDueDate = i.dueDate
+        } else {
+          minParentDueDate = Math.min(minParentDueDate, i.dueDate)
+        }
       }
       if (i !== undefined && i.repeat !== undefined) {
         // Use ancestor repeat if exists
         result.repeat = i.repeat
         result.repeatEndDate = i.repeatEndDate
         result.repeatInterval = i.repeatInterval
-        result.hasAncestorRepeat = i.status !== ItemStatus.COMPLETED
+        result.repeatOnCompletion = i.repeatOnCompletion
+        result.hasAncestorRepeat = true
+        result.hasActiveAncestorRepeat = i.status !== ItemStatus.COMPLETED
+      }
+    }
+    // Clamp repeat end date to earliest parent due date
+    if (minParentDueDate !== undefined) {
+      if (result.repeatEndDate === undefined) {
+        result.repeatEndDate = minParentDueDate
+      } else {
+        result.repeatEndDate = Math.min(result.repeatEndDate, minParentDueDate)
       }
     }
     return result
@@ -1121,22 +1340,81 @@ export class DataStore {
     return true
   }
 
-  private getLexicographicScore(itemID: ItemID) {
-    const result: number[] = []
-    let item: Item | undefined = this.getItem(itemID)
-    while (item !== undefined) {
-      const parentID = item.parentID
-      if (parentID === undefined) {
-        result.push(this.state.rootItemIDs.indexOf(item.id))
-        break
-      } else {
-        const parentItem = this.getItem(parentID)
-        if (parentItem === undefined) break
-        result.push(parentItem.childrenIDs.indexOf(item.id))
-        item = parentItem
-      }
+  private getLexicographicScores(): Map<ItemID, number[]> {
+    const result = new Map<ItemID, number[]>()
+    const count = this.state.rootItemIDs.length
+    for (let i = 0; i < count; i++) {
+      const item = this.getItem(this.state.rootItemIDs[i])
+      if (item === undefined) continue
+      this.getLexicographicScoresInternal(item, [i], result)
     }
-    result.reverse()
     return result
+  }
+
+  private getLexicographicScoresInternal(item: Item, temp: number[],
+                                         result: Map<ItemID, number[]>) {
+    result.set(item.id, [...temp])
+    const numChildren = item.childrenIDs.length
+    for (let i = 0; i < numChildren; i++) {
+      const child = this.getItem(item.childrenIDs[i])
+      if (child === undefined) continue
+      temp.push(i)
+      this.getLexicographicScoresInternal(child, temp, result)
+      temp.pop()
+    }
+  }
+
+  public getSubtreeItems(itemID: ItemID): ItemID[] {
+    const item = this.getItem(itemID)
+    if (item === undefined) return []
+
+    const result: ItemID[] = []
+    this.getSubtreeItemsInternal(item, result)
+    return result
+  }
+
+  private getSubtreeItemsInternal(item: Item, result: ItemID[]) {
+    result.push(item.id)
+    const numChildren = item.childrenIDs.length
+    for (let i = 0; i < numChildren; i++) {
+      const childID = item.childrenIDs[i]
+      const child = this.getItem(childID)
+      if (child === undefined) continue
+      this.getSubtreeItemsInternal(child, result)
+    }
+  }
+
+  /**
+   * NOTE: The returned list will be in bottom-top order.
+   */
+  public getAncestorsPlusSelf(itemID: ItemID): ItemID[] {
+    const result: ItemID[] = []
+    let i: Item | undefined = this.getItem(itemID)
+    while (i !== undefined) {
+      result.push(i.id)
+      if (i.parentID === undefined) break
+      i = this.getItem(i.parentID)
+    }
+    return result
+  }
+
+  private setDraftSubtreeStatus(draft: Draft<DataStoreState>, item: Draft<Item>,
+                                status: ItemStatus) {
+    // TODO optimize: This causes the children ID array to be drafted
+    item.status = status
+    const numChildren = item.childrenIDs.length
+    for (let i = 0; i < numChildren; i++) {
+      const childID = item.childrenIDs[i]
+      const child = draft.items.get(childID)
+      if (child === undefined) continue
+      this.setDraftSubtreeStatus(draft, child, status)
+    }
+  }
+
+  /**
+   * Get the DayID of today, taking into account the "start of day" setting.
+   */
+  getCurrentDayID() {
+    return dayIDNow(this.state.startOfDayMinutes)
   }
 }

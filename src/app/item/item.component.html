@@ -13,7 +13,7 @@
     <ng-content select="[prefix]"></ng-content>
     <button mat-icon-button (click)="toggleDone()">
       <mat-icon class="checkbox" [class.checked]="done">
-        {{done ? 'check_circle' : 'radio_button_unchecked'}}
+        {{getCheckBoxIcon()}}
       </mat-icon>
     </button>
     <div class="item-body"
@@ -30,7 +30,7 @@
             *ngIf="node.effectiveDueDate !== undefined">
         Due: {{getEffectiveDueDate() | date:'MMM d'}}
       </span>
-      <span class="app-single-line-text">{{node.cost}}</span>
+      <span class="app-single-line-text cost-text">{{getCostText()}}</span>
       <app-session-chip></app-session-chip>
     </div>
     <ng-content select="[suffix]"></ng-content>

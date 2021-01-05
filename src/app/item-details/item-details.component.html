@@ -109,6 +109,16 @@
         </mat-button-toggle>
       </mat-button-toggle-group>
     </div>
+    <div class="full-width-field" *ngIf="repeatEnabled">
+      <mat-checkbox name="repeatOnCompletion"
+                    [(ngModel)]="draft.repeatOnCompletion">
+        Repeat on completion
+      </mat-checkbox>
+      <mat-icon matTooltip="TODO" matTooltipPosition="above" class="help-icon">
+        help
+      </mat-icon>
+      <div class="hfill"></div>
+    </div>
     <div class="full-width-field">
       <mat-checkbox name="autoAdjustPriority"
                     [(ngModel)]="draft.autoAdjustPriority">
@@ -152,9 +162,9 @@
                  cpAlphaChannel="disabled" class="color-picker"/>
         </div>
         <button type="button" mat-icon-button (click)="setRandomColor()"
-                matTooltip="Random"
+                matTooltip="Randomize"
                 matTooltipPosition="above">
-          <mat-icon>autorenew</mat-icon>
+          <mat-icon>casino</mat-icon>
         </button>
       </div>
     </div>

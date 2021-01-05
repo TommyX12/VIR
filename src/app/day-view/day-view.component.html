@@ -58,7 +58,7 @@
                   *ngIf="session.done"
                   (click)="toggleItemDone(session) && $event.preventDefault()">
             <mat-icon class="checkbox" [class.checked]="session.itemDone">
-              {{session.itemDone ? 'check_circle' : 'radio_button_unchecked'}}
+              {{getCheckBoxIcon(session)}}
             </mat-icon>
           </button>
           <span class="left-margin right-margin app-single-line-text"

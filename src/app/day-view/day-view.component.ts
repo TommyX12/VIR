@@ -7,7 +7,7 @@ import {
   ViewChild,
 } from '@angular/core'
 import {dayIDNow, dayIDToDate} from '../util/time-util'
-import {DataStore, DataStoreState} from '../data/data-store'
+import {DataStore} from '../data/data-store'
 import {MatDialog} from '@angular/material/dialog'
 import {SessionDetailsComponent} from '../session-details/session-details.component'
 import Color from 'color'
@@ -23,8 +23,11 @@ import {Subscription} from 'rxjs'
 import {getOrCreate} from '../util/util'
 import {HomeComponent} from '../home/home.component'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
+import {DataAnalyzer} from '../data/data-analyzer'
+import {MatSnackBar} from '@angular/material/snack-bar'
 
 interface Session {
+  canItemRepeat: boolean
   scheduled: boolean
   projected: boolean
   type: SessionType
@@ -78,20 +81,22 @@ export class DayViewComponent implements OnInit, OnDestroy {
   ]
 
   private dataStoreChangeSubscription?: Subscription
+  private dataAnalyzerChangeSubscription?: Subscription
 
   private onDataChanged = (dataStore: DataStore) => {
-    if (dataStore.state === this.lastState) {
-      return
-    }
-    this.lastState = dataStore.state
     this.refresh()
   }
 
-  private lastState?: DataStoreState
+  private onAnalyzerChanged = (dataAnalyzer: DataAnalyzer) => {
+    // TODO implement me
+    this.refresh()
+  }
 
   constructor(
     private readonly dataStore: DataStore,
+    private readonly dataAnalyzer: DataAnalyzer,
     private readonly dialog: MatDialog,
+    private readonly snackBar: MatSnackBar,
   ) {
   }
 
@@ -118,16 +123,29 @@ export class DayViewComponent implements OnInit, OnDestroy {
       this.dataStoreChangeSubscription =
         this.dataStore.onChange.subscribe(this.onDataChanged)
     }
+    if (this.dataAnalyzerChangeSubscription === undefined) {
+      this.dataAnalyzerChangeSubscription =
+        this.dataAnalyzer.onChange.subscribe(this.onAnalyzerChanged)
+    }
   }
 
   unsubscribeFromData() {
     this.dataStoreChangeSubscription?.unsubscribe()
     this.dataStoreChangeSubscription = undefined
+    this.dataAnalyzerChangeSubscription?.unsubscribe()
+    this.dataAnalyzerChangeSubscription = undefined
   }
 
   getDate() {
     // TODO optimize: cache this evrey time dayID is set
     return dayIDToDate(this.dayID)
+  }
+
+  getCheckBoxIcon(session: Session) {
+    if (session.itemDone) {
+      return 'check_circle'
+    }
+    return session.canItemRepeat ? 'loop' : 'radio_button_unchecked'
   }
 
   onAddButtonClicked(event: MouseEvent) {
@@ -271,6 +289,8 @@ export class DayViewComponent implements OnInit, OnDestroy {
         const item = this.dataStore.getItem(itemID)
         if (item !== undefined) {
           getOrCreate(this.sessions, type, () => []).push({
+            canItemRepeat: item.repeat !== undefined &&
+              !this.dataStore.getHasAncestorRepeat(item),
             scheduled: type === SessionType.SCHEDULED,
             projected: type === SessionType.PROJECTED,
             type,
@@ -302,7 +322,11 @@ export class DayViewComponent implements OnInit, OnDestroy {
   toggleItemDone(session: Session) {
     const draft = this.dataStore.getItem(session.item.id)!.toDraft()
     draft.status = session.itemDone ? ItemStatus.ACTIVE : ItemStatus.COMPLETED
-    this.dataStore.updateItem(draft)
+    if (this.dataStore.updateItem(draft)) { // Repeated
+      this.snackBar.open('Item repeated.', 'OK', {
+        duration: 3000,
+      })
+    }
   }
 
   getSessions(type: SessionType): Session[] {

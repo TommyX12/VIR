@@ -8,11 +8,7 @@ import {
   OnInit,
   ViewChild,
 } from '@angular/core'
-import {
-  DataStore,
-  DataStoreAutoCompleter,
-  DataStoreState,
-} from '../data/data-store'
+import {DataStore, DataStoreAutoCompleter} from '../data/data-store'
 import {BehaviorSubject, Subscription} from 'rxjs'
 import {MatDialog} from '@angular/material/dialog'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
@@ -24,6 +20,7 @@ import {
   ItemDroppedInsertionType,
 } from '../item/item.component'
 import {ItemNode} from '../items/items.component'
+import {DataAnalyzer} from '../data/data-analyzer'
 
 const SEARCH_IDLE_DELAY = 200
 
@@ -64,18 +61,18 @@ export class QueueComponent implements OnInit, OnDestroy, AfterViewInit {
   filter: ItemFilter = new ItemFilter()
   allowedItemIDs = new Set<ItemID>()
 
-  private lastState?: DataStoreState
-
   private onDataChanged = (dataStore: DataStore) => {
-    if (dataStore.state === this.lastState) {
-      return
-    }
-    this.lastState = dataStore.state
     this.filter.onDataStoreUpdated(dataStore)
     this.refresh()
   }
 
+  private onAnalyzerChanged = (dataAnalyzer: DataAnalyzer) => {
+    // TODO implement me
+    this.refresh()
+  }
+
   private dataStoreChangeSubscription?: Subscription
+  private dataAnalyzerChangeSubscription?: Subscription
   private searchQueryChangeSubscription?: Subscription
   private _searchQuery: string = ''
   private searchQueryValue = new BehaviorSubject<string>(this._searchQuery)
@@ -85,6 +82,7 @@ export class QueueComponent implements OnInit, OnDestroy, AfterViewInit {
   constructor(
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly dataStore: DataStore,
+    private readonly dataAnalyzer: DataAnalyzer,
     private readonly dialog: MatDialog,
     private readonly zone: NgZone,
   ) {
@@ -183,17 +181,25 @@ export class QueueComponent implements OnInit, OnDestroy, AfterViewInit {
     this.data = this.dataStore.state.queue.filter(
       itemID => this.allowedItemIDs.has(itemID)).map(itemID => {
       const item = this.dataStore.getItem(itemID)!
+      const tasks = this.dataAnalyzer.getTasks(item.id)
+      const firstTask = tasks === undefined ? undefined : tasks[0]
+      const effectiveInfo = this.dataStore.getEffectiveInfo(item)
       return {
         isIndirect: false,
         level: 0,
-        effectiveDeferDate: this.dataStore.getEffectiveDeferDate(item),
-        effectiveDueDate: this.dataStore.getEffectiveDueDate(item),
+        effectiveDeferDate: effectiveInfo.deferDate,
+        effectiveDueDate: effectiveInfo.dueDate,
         expandable: item.childrenIDs.length > 0,
         id: item.id,
         name: this.dataStore.getQualifiedName(item),
         status: item.status,
+        effectiveCost: item.effectiveCost,
         cost: item.cost,
         color: this.dataStore.getItemColor(item),
+        canRepeat: item.repeat !== undefined &&
+          !effectiveInfo.hasAncestorRepeat,
+        progress: firstTask?.progress,
+        plannedProgress: firstTask?.plannedProgress,
       }
     })
     this.changeDetectorRef.detectChanges()
@@ -208,11 +214,17 @@ export class QueueComponent implements OnInit, OnDestroy, AfterViewInit {
       this.dataStoreChangeSubscription =
         this.dataStore.onChange.subscribe(this.onDataChanged)
     }
+    if (this.dataAnalyzerChangeSubscription === undefined) {
+      this.dataAnalyzerChangeSubscription =
+        this.dataAnalyzer.onChange.subscribe(this.onAnalyzerChanged)
+    }
   }
 
   unsubscribeFromData() {
     this.dataStoreChangeSubscription?.unsubscribe()
     this.dataStoreChangeSubscription = undefined
+    this.dataAnalyzerChangeSubscription?.unsubscribe()
+    this.dataAnalyzerChangeSubscription = undefined
   }
 
   /**

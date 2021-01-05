@@ -9,7 +9,7 @@ import {
 } from '@angular/core'
 import {dateAddDay, dateToDayID, dayIDNow, startOfWeek} from '../util/time-util'
 import {Subscription} from 'rxjs'
-import {DataStore, DataStoreState} from '../data/data-store'
+import {DataStore} from '../data/data-store'
 import {MonthDayViewComponent} from '../month-day-view/month-day-view.component'
 import {HomeComponent} from '../home/home.component'
 import {DataAnalyzer} from '../data/data-analyzer'
@@ -48,13 +48,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
     return result
   })()
 
-  private lastState?: DataStoreState
-
   private onDataChanged = (dataStore: DataStore) => {
-    if (dataStore.state === this.lastState) {
-      return
-    }
-    this.lastState = dataStore.state
     this.refresh()
   }
 

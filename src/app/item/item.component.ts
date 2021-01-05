@@ -12,6 +12,7 @@ import {ItemNode} from '../items/items.component'
 import {DataStore} from '../data/data-store'
 import {ItemID, ItemStatus} from '../data/common'
 import {dayIDToDate} from '../util/time-util'
+import {MatSnackBar} from '@angular/material/snack-bar'
 
 const DROP_THRESHOLDS_WITH_CHILD_DROP = [0.4, 0.666]
 
@@ -51,6 +52,7 @@ export class ItemComponent implements OnInit {
   constructor(
     private readonly dataStore: DataStore,
     private readonly zone: NgZone,
+    private readonly snackBar: MatSnackBar,
   ) {
   }
 
@@ -69,10 +71,21 @@ export class ItemComponent implements OnInit {
     return this.node.status === ItemStatus.COMPLETED
   }
 
+  getCheckBoxIcon() {
+    if (this.node.status === ItemStatus.COMPLETED) {
+      return 'check_circle'
+    }
+    return this.node.canRepeat ? 'loop' : 'radio_button_unchecked'
+  }
+
   set done(value: boolean) {
     const draft = this.dataStore.getItem(this.node.id)!.toDraft()
     draft.status = value ? ItemStatus.COMPLETED : ItemStatus.ACTIVE
-    this.dataStore.updateItem(draft)
+    if (this.dataStore.updateItem(draft)) { // Repeated
+      this.snackBar.open('Item repeated.', 'OK', {
+        duration: 3000,
+      })
+    }
   }
 
   toggleDone() {
@@ -148,5 +161,12 @@ export class ItemComponent implements OnInit {
   getEffectiveDueDate() {
     return this.node.effectiveDueDate ?
       dayIDToDate(this.node.effectiveDueDate) : undefined
+  }
+
+  getCostText() {
+    if (this.node.progress !== undefined) {
+      return `${this.node.progress}/${this.node.plannedProgress}/${this.node.effectiveCost}`
+    }
+    return `${this.node.effectiveCost}`
   }
 }

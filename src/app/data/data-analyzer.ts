@@ -1,21 +1,16 @@
 import {Injectable} from '@angular/core'
-import {DataStore, DataStoreState, EffectiveItemInfo} from './data-store'
+import {DataStore, DataStoreState} from './data-store'
 import {BehaviorSubject} from 'rxjs'
 import {
   DayID,
+  DEFAULT_REPEATERS,
   Item,
   ItemID,
   ItemStatus,
+  Repeater,
   SessionType,
-  WeeklyRepeatType,
 } from './common'
-import {
-  dateToDayID,
-  dayIDNow,
-  dayIDToDate,
-  daysInMonth,
-  dowOfDayID,
-} from '../util/time-util'
+import {dayIDNow} from '../util/time-util'
 import {debounceTime} from 'rxjs/operators'
 import {Counter} from '../util/util'
 
@@ -38,214 +33,16 @@ export interface Task {
 
   progress?: number
   plannedProgress?: number
+
+  inactive?: boolean
 }
-
-type Repeater = (firstTask: Task, itemInfo: EffectiveItemInfo,
-                 maxProjectionEndDate: DayID,
-                 result: Task[]) => void
-
-/**
- * NOTE:
- * - Due date is assumed to always exist, otherwise repeat is not allowed.
- *
- * TODO: refactor to reuse code between repeaters
- */
-const DEFAULT_REPEATERS: {
-  id: string,
-  repeater: Repeater,
-}[] = [
-  {
-    id: 'day',
-    repeater: (firstTask: Task, itemInfo: EffectiveItemInfo,
-               maxProjectionEndDate: DayID,
-               result: Task[]) => {
-      if (firstTask.end === undefined) return
-
-      const startToEnd = (firstTask.start !== undefined ?
-        firstTask.end - firstTask.start : undefined)
-      let end = firstTask.end
-      const repeatInterval = itemInfo.repeatInterval
-      if (repeatInterval <= 0) return
-      let lastEnd = end
-
-      while (true) {
-        end += repeatInterval
-        if (itemInfo.repeatEndDate !== undefined && end >
-          itemInfo.repeatEndDate) {
-          break
-        }
-        result.push({
-          itemID: firstTask.itemID,
-          cost: firstTask.cost,
-          start: startToEnd === undefined ? lastEnd + 1 :
-            Math.max(lastEnd + 1, end - startToEnd),
-          end,
-        })
-        // This ensures that there's at least one task after max date
-        if (end > maxProjectionEndDate) break
-        lastEnd = end
-      }
-    },
-  },
-  {
-    id: 'week',
-    repeater: (firstTask: Task, itemInfo: EffectiveItemInfo,
-               maxProjectionEndDate: DayID,
-               result: Task[]) => {
-      if (firstTask.end === undefined) return
-
-      const startToEnd = (firstTask.start !== undefined ?
-        firstTask.end - firstTask.start : undefined)
-      let end = firstTask.end
-      const repeatInterval = itemInfo.repeatInterval
-      if (repeatInterval <= 0) return
-      let lastEnd = end
-
-      const r = itemInfo.repeat as WeeklyRepeatType
-      const dayOfWeek = r.dayOfWeek.slice()
-      dayOfWeek.sort((a, b) => a - b)
-      const simpleRepeat = dayOfWeek.length === 0
-      let dayOfWeekPtr = -1
-
-      while (true) {
-        if (simpleRepeat) {
-          end += repeatInterval * 7
-        } else {
-          const endDOW = dowOfDayID(end)
-          const endStartOfWeek = end - endDOW
-          if (dayOfWeekPtr === -1) {
-            let nextDOW = -1
-            dayOfWeekPtr = 0
-            const count = dayOfWeek.length
-            for (let i = 0; i < count; i++) {
-              const dow = dayOfWeek[i]
-              if (dow <= endDOW) continue
-              nextDOW = dow
-              dayOfWeekPtr = i
-              break
-            }
-
-            if (nextDOW === -1) {
-              end = endStartOfWeek + repeatInterval * 7 + dayOfWeek[0]
-            } else {
-              end = endStartOfWeek + nextDOW
-            }
-
-            // dayOfWeekPtr will point to where end is at
-          } else {
-            dayOfWeekPtr++
-            if (dayOfWeekPtr >= dayOfWeek.length) {
-              end = endStartOfWeek + repeatInterval * 7 + dayOfWeek[0]
-              dayOfWeekPtr = 0
-            } else {
-              end = endStartOfWeek + dayOfWeek[dayOfWeekPtr]
-            }
-          }
-        }
-        if (itemInfo.repeatEndDate !== undefined && end >
-          itemInfo.repeatEndDate) {
-          break
-        }
-        result.push({
-          itemID: firstTask.itemID,
-          cost: firstTask.cost,
-          start: startToEnd === undefined ? lastEnd + 1 :
-            Math.max(lastEnd + 1, end - startToEnd),
-          end,
-        })
-        // This ensures that there's at least one task after max date
-        if (end > maxProjectionEndDate) break
-        lastEnd = end
-      }
-    },
-  },
-  {
-    id: 'month',
-    repeater: (firstTask: Task, itemInfo: EffectiveItemInfo,
-               maxProjectionEndDate: DayID,
-               result: Task[]) => {
-      if (firstTask.end === undefined) return
-
-      const startToEnd = (firstTask.start !== undefined ?
-        firstTask.end - firstTask.start : undefined)
-      let end = firstTask.end
-      const repeatInterval = itemInfo.repeatInterval
-      if (repeatInterval <= 0) return
-      let lastEnd = end
-
-      // TODO dayOfMonth is currently not supported
-
-      const endDate = dayIDToDate(end)
-      const year = endDate.getFullYear()
-      let month = endDate.getMonth()
-      const day = endDate.getDate()
-
-      while (true) {
-        month += repeatInterval
-        end = dateToDayID(
-          new Date(year, month, Math.min(day, daysInMonth(year, month))))
-        if (itemInfo.repeatEndDate !== undefined && end >
-          itemInfo.repeatEndDate) {
-          break
-        }
-        result.push({
-          itemID: firstTask.itemID,
-          cost: firstTask.cost,
-          start: startToEnd === undefined ? lastEnd + 1 :
-            Math.max(lastEnd + 1, end - startToEnd),
-          end,
-        })
-        // This ensures that there's at least one task after max date
-        if (end > maxProjectionEndDate) break
-        lastEnd = end
-      }
-    },
-  },
-  {
-    id: 'year',
-    repeater: (firstTask: Task, itemInfo: EffectiveItemInfo,
-               maxProjectionEndDate: DayID,
-               result: Task[]) => {
-      if (firstTask.end === undefined) return
-
-      const startToEnd = (firstTask.start !== undefined ?
-        firstTask.end - firstTask.start : undefined)
-      let end = firstTask.end
-      const repeatInterval = itemInfo.repeatInterval
-      if (repeatInterval <= 0) return
-      let lastEnd = end
-
-      const endDate = dayIDToDate(end)
-      let year = endDate.getFullYear()
-      const month = endDate.getMonth()
-      const day = endDate.getDate()
-
-      while (true) {
-        year += repeatInterval
-        end = dateToDayID(
-          new Date(year, month, Math.min(day, daysInMonth(year, month))))
-        if (itemInfo.repeatEndDate !== undefined && end >
-          itemInfo.repeatEndDate) {
-          break
-        }
-        result.push({
-          itemID: firstTask.itemID,
-          cost: firstTask.cost,
-          start: startToEnd === undefined ? lastEnd + 1 :
-            Math.max(lastEnd + 1, end - startToEnd),
-          end,
-        })
-        // This ensures that there's at least one task after max date
-        if (end > maxProjectionEndDate) break
-        lastEnd = end
-      }
-    },
-  },
-]
 
 /**
  * NOTE: When data store updates, any user of analyzer data must query the
  * analyzer again, since the information might be out of date.
+ *
+ * This task also need to make sure that when it's not up to date, any query
+ * result should still *make sense*.
  */
 @Injectable()
 export class DataAnalyzer {
@@ -285,20 +82,36 @@ export class DataAnalyzer {
   private processDataStore(dataStore: DataStore) {
     // TODO use web worker
 
+    // Clean-up
+
+    this.itemIDToTasks.clear()
+
     const maxProjectionEndDate = dayIDNow() + this.maxProjectionRange
 
     const tasks = this.generateTasks(dataStore, maxProjectionEndDate)
 
-    // TODO remove me
-    console.log(tasks)
+    const numTasks = tasks.length
+    for (let i = 0; i < numTasks; i++) {
+      const task = tasks[i]
+      const list = this.itemIDToTasks.get(task.itemID)
+      if (list === undefined) {
+        this.itemIDToTasks.set(task.itemID, [task])
+      } else {
+        list.push(task)
+      }
+    }
 
-    this.trackProgress(dataStore, tasks) // Modifies tasks in-place
+    // console.log(tasks)
 
-    this.onChangeSubject.next(this)
+    // Modifies tasks in-place
+    this.trackProgress(dataStore, tasks, maxProjectionEndDate)
+
     this.currentDataStoreState = dataStore.state
+    this.onChangeSubject.next(this)
   }
 
-  private trackProgress(dataStore: DataStore, tasks: Task[]) {
+  private trackProgress(dataStore: DataStore, tasks: Task[],
+                        maxProjectionEndDate: DayID) {
     const doneCounter = new Counter<ItemID>()
     const plannedCounter = new Counter<ItemID>()
 
@@ -323,6 +136,15 @@ export class DataAnalyzer {
                                // endpoint
     }
 
+    // TODO optimize with DFS
+    const parentChains = new Map<ItemID, ItemID[]>()
+    tasks.forEach(task => {
+      if (!parentChains.has(task.itemID)) {
+        parentChains.set(
+          task.itemID, dataStore.getAncestorsPlusSelf(task.itemID))
+      }
+    })
+
     // Start of search range
     let searchStartDayID: number | undefined = undefined
 
@@ -330,10 +152,10 @@ export class DataAnalyzer {
     let count = tasks.length
     for (let i = 0; i < count; i++) {
       const task = tasks[i]
-      if (task.end === undefined) continue
+      const end = task.end === undefined ? maxProjectionEndDate : task.end
 
       const startDayID = task.start === undefined ?
-        Math.min(earliestDayID, task.end) :
+        Math.min(earliestDayID, end) :
         task.start
 
       if (searchStartDayID === undefined || startDayID < searchStartDayID) {
@@ -350,9 +172,9 @@ export class DataAnalyzer {
       endpoints.push({
         doneCount: 0,
         plannedCount: 0,
-        dayID: task.end + 1, // Note that we add 1 here so the due date
-                             // endpoint comes after counting the progress on
-                             // the due date.
+        dayID: end + 1, // Note that we add 1 here so the due date
+        // endpoint comes after counting the progress on
+        // the due date.
         startEndpoint,
         task,
       })
@@ -371,12 +193,28 @@ export class DataAnalyzer {
         const dayData = dataStore.getDayData(ptr)
         dayData.sessions.get(SessionType.COMPLETED)
           ?.forEach((count, itemID) => {
-            doneCounter.add(itemID, count)
-            plannedCounter.add(itemID, count)
+            const parentChain = parentChains.get(itemID)
+            if (parentChain !== undefined) {
+              const length = parentChain.length
+              for (let j = 0; j < length; j++) {
+                const id = parentChain[j]
+                doneCounter.add(id, count)
+                plannedCounter.add(id, count)
+              }
+            }
+            // If undefined, this item isn't needed for counting anyways
           })
         dayData.sessions.get(SessionType.SCHEDULED)
           ?.forEach((count, itemID) => {
-            plannedCounter.add(itemID, count)
+            const parentChain = parentChains.get(itemID)
+            if (parentChain !== undefined) {
+              const length = parentChain.length
+              for (let j = 0; j < length; j++) {
+                const id = parentChain[j]
+                plannedCounter.add(id, count)
+              }
+            }
+            // If undefined, this item isn't needed for counting anyways
           })
 
         ptr++
@@ -395,6 +233,9 @@ export class DataAnalyzer {
     }
   }
 
+  /**
+   * NOTE: The tasks are generated in due date order per each item
+   */
   private generateTasks(dataStore: DataStore, maxProjectionEndDate: DayID) {
     const result: Task[] = []
     dataStore.state.items.forEach(item => {
@@ -407,27 +248,25 @@ export class DataAnalyzer {
                                result: Task[]) {
     const itemInfo = this.dataStore.getEffectiveInfo(item)
 
-    if (item.status === ItemStatus.COMPLETED &&
-      !itemInfo.hasAncestorRepeat) {
-      return
-    }
-
     const firstTask = {
       itemID: item.id,
       cost: item.cost,
       start: itemInfo.deferDate,
       end: itemInfo.dueDate,
+      inactive: item.status === ItemStatus.COMPLETED,
     }
 
     if (firstTask.start !== undefined && firstTask.end !== undefined) {
       firstTask.start = Math.min(firstTask.start, firstTask.end)
     }
 
-    if (item.status !== ItemStatus.COMPLETED) {
-      result.push(firstTask)
-    }
+    result.push(firstTask)
 
-    if (itemInfo.repeat === undefined) return
+    if (itemInfo.repeat === undefined ||
+      (!itemInfo.hasActiveAncestorRepeat &&
+        item.status === ItemStatus.COMPLETED)) {
+      return
+    }
 
     const repeater = this.repeaters.get(itemInfo.repeat.id)
     if (repeater === undefined) {
@@ -436,10 +275,23 @@ export class DataAnalyzer {
       return
     }
 
-    repeater(firstTask, itemInfo, maxProjectionEndDate, result)
+    const r = repeater(firstTask, itemInfo, maxProjectionEndDate)
+
+    while (true) {
+      const nextTask = r()
+      if (nextTask === undefined) break
+      result.push(nextTask)
+    }
   }
 
   private isUpToDate() {
     return this.currentDataStoreState === this.dataStore.state
+  }
+
+  getTasks(itemID: ItemID): Task[] | undefined {
+    if (!this.dataStore.hasItem(itemID)) {
+      return undefined
+    }
+    return this.itemIDToTasks.get(itemID)
   }
 }

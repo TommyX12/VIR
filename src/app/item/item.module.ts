@@ -7,6 +7,7 @@ import {SessionChipModule} from '../session-chip/session-chip.module'
 import {MatCheckboxModule} from '@angular/material/checkbox'
 import {FormsModule} from '@angular/forms'
 import {SharedModule} from '../shared/shared.module'
+import {MatSnackBarModule} from '@angular/material/snack-bar'
 
 
 @NgModule({
@@ -19,6 +20,7 @@ import {SharedModule} from '../shared/shared.module'
     MatCheckboxModule,
     FormsModule,
     SharedModule,
+    MatSnackBarModule,
   ],
   exports: [ItemComponent],
 })
