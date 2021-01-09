@@ -16,6 +16,7 @@ import {DayViewDialogComponent} from '../day-view-dialog/day-view-dialog.compone
 import {HomeComponent} from '../home/home.component'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
 import {QuickQuotaEditComponent} from '../quick-quota-edit/quick-quota-edit.component'
+import {DataAnalyzer} from '../data/data-analyzer'
 
 interface Session {
   scheduled: boolean
@@ -50,6 +51,7 @@ export class MonthDayViewComponent implements OnInit {
 
   constructor(
     private readonly dataStore: DataStore,
+    private readonly dataAnalyzer: DataAnalyzer,
     private readonly dialog: MatDialog,
   ) {
   }
@@ -62,12 +64,15 @@ export class MonthDayViewComponent implements OnInit {
   @Input() set dayData(value: DayData) {
     if (value !== this._dayData) {
       this._dayData = value
-      this.processData(value)
+      this.processData()
     }
   }
 
-  processData(dayData?: DayData) {
-    dayData = dayData || this._dayData
+  /**
+   * Called on data store change as well as on data analyzer change.
+   */
+  processData() {
+    const dayData = this._dayData
     if (dayData === undefined) return
     this.sessions = []
     this.totalCount = 0
@@ -90,6 +95,27 @@ export class MonthDayViewComponent implements OnInit {
         }
       })
     })
+
+    const projections = this.dataAnalyzer.getProjections(this.dayID)
+    if (projections !== undefined) {
+      projections.forEach((count, itemID) => {
+        const item = this.dataStore.getItem(itemID)
+        if (item !== undefined) {
+          this.sessions.push({
+            scheduled: false,
+            projected: true,
+            type: SessionType.PROJECTED,
+            item,
+            count,
+            color: this.dataStore.getItemColor(item),
+            done: false,
+            itemDone: item.status === ItemStatus.COMPLETED,
+          })
+
+          this.totalCount += count
+        }
+      })
+    }
 
     this.sessions.sort((a, b) => {
       if (a.type !== b.type) return a.type - b.type
@@ -316,5 +342,9 @@ export class MonthDayViewComponent implements OnInit {
       return 0
     }
     return Math.min(Math.max(this.totalCount / this.quota, 0), 1)
+  }
+
+  sessionTrackByFn(index: number, session: Session) {
+    return session.item.id
   }
 }

@@ -1,7 +1,15 @@
 import Color from 'color'
 import convert from 'color-convert'
 import produce, {Draft, immerable} from 'immer'
-import {arrayMove, getOrCreate, random, removeValue} from '../util/util'
+import {
+  arrayMove,
+  clampedLinearMap,
+  getOrCreate,
+  longestIncreasingSubsequence,
+  optionalClamp,
+  random,
+  removeValue,
+} from '../util/util'
 import {
   ConstantQuotaRule,
   DayID,
@@ -57,6 +65,173 @@ function applySessionModification(existingCount: number,
     result = existingCount
   }
   return Math.max(0, result)
+}
+
+/**
+ * NOTE: Array is used instead of object for performance reasons.
+ * "Less than" means earlier in queue (i.e. higher priority)
+ */
+export type QueuePriorityProxy = [
+  dueDate: DayID | undefined,
+  special: number, // This is used to force unnatural ordering
+  postOrderIndex: number,
+]
+
+export function getQueuePriorityProxy(effectiveDueDate: DayID | undefined,
+                                      postOrderIndex: number): QueuePriorityProxy {
+  return [effectiveDueDate, 0, postOrderIndex]
+}
+
+export function queuePriorityProxyCompare(a: QueuePriorityProxy,
+                                          b: QueuePriorityProxy) {
+  if (a[0] !== b[0]) {
+    if (b[0] === undefined) return -1
+    if (a[0] === undefined) return 1
+    return a[0] - b[0]
+  }
+  if (a[1] !== b[1]) {
+    return a[1] - b[1]
+  }
+  return a[2] - b[2]
+}
+
+/**
+ * @deprecated Legacy
+ */
+export interface QueueItemInfo {
+  itemID: ItemID
+  postOrderIndex: number
+  effectiveDueDate?: DayID
+}
+
+/**
+ * @deprecated Legacy
+ */
+export function getSmartQueueInsertionIndex(queueInfo: QueueItemInfo[],
+                                            queueItemInfo: QueueItemInfo) {
+  // TODO improve this heuristic
+
+  let queueSize = queueInfo.length
+
+  let start = 0
+  let end = queueSize // exclusive
+  const selfDueDate = queueItemInfo.effectiveDueDate
+  if (selfDueDate === undefined) {
+    // Search for the last item with deadline
+    // for (let i = queueSize - 1; i >= 0; --i) {
+    //   if (this.getItem(queue[i])!.dueDate !== undefined) {
+    //     start = i + 1
+    //     break
+    //   }
+    // }
+  } else {
+    let foundLowerBound = false
+    let foundUpperBound = false
+    start = 0
+    end = 0
+    for (let i = 0; i < queueSize; ++i) {
+      const dueDate = queueInfo[i].effectiveDueDate
+      if (dueDate === undefined) continue
+      if (dueDate < selfDueDate) {
+        start = i + 1
+        end = start
+      } else if (!foundLowerBound) { // dueDate === selfDueDate
+        start = i
+        end = start
+        foundLowerBound = true
+      }
+    }
+    for (let i = queueSize - 1; i > start; --i) {
+      const dueDate = queueInfo[i].effectiveDueDate
+      if (dueDate === undefined) continue
+      if (dueDate > selfDueDate) {
+        end = i
+      } else if (!foundUpperBound) { // dueDate === selfDueDate
+        end = i + 1
+        foundUpperBound = true
+      }
+    }
+  }
+
+  if (start >= end) {
+    return start
+  } else {
+    const selfScore = queueItemInfo.postOrderIndex
+    // TODO draft.items.get(parentID)!.childrenIDs.indexOf(itemID)
+    let candidate: number | undefined = undefined
+    let candidateScore: number | undefined = undefined
+    for (let i = start; i < end; ++i) {
+      const score = queueInfo[i].postOrderIndex
+      if (score < selfScore) {
+        if (candidateScore === undefined || candidateScore < score) {
+          candidate = i
+          candidateScore = score
+        }
+      }
+    }
+
+    if (candidate === undefined) {
+      return start
+    } else {
+      return candidate + 1
+    }
+  }
+}
+
+export interface SubtreeRepetitionInfo {
+  itemID: ItemID
+  startOffset?: number
+  endOffset?: number
+}
+
+export interface SubtreeRepetitionResult {
+  itemID: ItemID
+  deferDate?: DayID
+  dueDate?: DayID
+}
+
+export function generateSubtreeRepetition(
+  nextTask: Task, rootItemID: ItemID, subtreeInfo: SubtreeRepetitionInfo[],
+) {
+  const result: SubtreeRepetitionResult[] = []
+  const count = subtreeInfo.length
+  for (let i = 0; i < count; i++) {
+    const info = subtreeInfo[i]
+    if (info === undefined) continue
+
+    if (nextTask.end === undefined) { // Probably won't happen
+      result.push({itemID: info.itemID})
+      continue
+    }
+
+    if (info.itemID === rootItemID) { // This is the subtree root
+      result.push({
+        itemID: info.itemID,
+        deferDate: nextTask.start,
+        dueDate: nextTask.end,
+      })
+    } else {
+      result.push({
+        itemID: info.itemID,
+        deferDate: info.startOffset === undefined ? undefined :
+          nextTask.end - info.startOffset,
+        dueDate: info.endOffset === undefined ? undefined :
+          nextTask.end - info.endOffset,
+      })
+
+      // if (nextTask.start !== undefined) {
+      //   if (info.deferDate !== undefined) {
+      //     info.deferDate =
+      //       Math.max(info.deferDate, nextTask.start)
+      //   } else {
+      //     info.deferDate = nextTask.start
+      //   }
+      //   if (info.dueDate !== undefined) {
+      //     info.dueDate = Math.max(info.dueDate,
+      // nextTask.start) } else { info.dueDate = nextTask.start } }
+    }
+  }
+  return result
 }
 
 export class DayMap<T> {
@@ -373,16 +548,13 @@ export interface UpdateItemOptions {
   insert?: 'above' | 'below'
 }
 
-/**
- * NOTE: This will make sure that parent (i.e. prefix) is always after children.
- */
 function lexicographicLessThan(a: number[], b: number[]) {
   let count = Math.min(a.length, b.length)
   for (let i = 0; i < count; ++i) {
     if (a[i] < b[i]) return true
     if (a[i] > b[i]) return false
   }
-  return a.length >= b.length
+  return a.length <= b.length
 }
 
 export interface EffectiveItemInfo {
@@ -548,16 +720,21 @@ export class DataStore {
   }
 
   /**
+   * NOTE: This root item must be self-repeatable.
    * Returns whether the repeat is successful (or simply marked as done)
    */
   private repeatSubtreeReducer = (draft: Draft<DataStoreState>,
-                                  itemID: ItemID,
-                                  subtree: ItemID[]): boolean => {
-    const item = draft.items.get(itemID)
+                                  rootItemID: ItemID,
+                                  subtree: ItemID[],
+                                  currentDate: DayID): boolean => {
+    const item = draft.items.get(rootItemID)
     if (item === undefined) return false
 
     const firstTask: Task = {
-      cost: item.cost, end: item.dueDate, itemID, start: item.deferDate,
+      cost: item.cost,
+      end: item.dueDate,
+      itemID: rootItemID,
+      start: item.deferDate,
     }
     if (firstTask.end === undefined) {
       item.status = ItemStatus.COMPLETED
@@ -586,17 +763,28 @@ export class DataStore {
       return false
     }
 
-    const nextTask = repeater(
-      firstTask, this.getEffectiveInfo(item), dayIDNow() + 100000000)()
+    const iterator = repeater(
+      firstTask, this.getEffectiveInfo(item), dayIDNow() + 100000000)
+    let nextTask: Task | undefined = undefined
+    while (true) {
+      nextTask = iterator()
+      if (nextTask === undefined || nextTask.end === undefined ||
+        nextTask.end >= currentDate) {
+        break
+      }
+    }
 
     if (nextTask === undefined) {
       item.status = ItemStatus.COMPLETED
       return false
     }
 
+    const subtreeInfo: SubtreeRepetitionInfo[] = []
+
     const count = subtree.length
     for (let i = 0; i < count; i++) {
-      const subtreeItem = draft.items.get(subtree[i])
+      const subtreeItemID = subtree[i]
+      const subtreeItem = draft.items.get(subtreeItemID)
       if (subtreeItem === undefined) continue
 
       subtreeItem.status = ItemStatus.ACTIVE
@@ -605,113 +793,58 @@ export class DataStore {
       const endOffset = subtreeItem.dueDate === undefined ? 0 :
         firstTask.end - repeatOffset - subtreeItem.dueDate
 
-      if (nextTask.end === undefined) {
-        subtreeItem.deferDate = undefined
-        subtreeItem.dueDate = undefined
-        continue
-      }
+      subtreeInfo.push({
+        itemID: subtreeItemID,
+        startOffset,
+        endOffset,
+      })
+    }
 
-      subtreeItem.deferDate =
-        startOffset === undefined ? undefined : nextTask.end - startOffset
-      subtreeItem.dueDate =
-        endOffset === undefined ? undefined : nextTask.end - endOffset
+    const repetitionResults = generateSubtreeRepetition(
+      nextTask, rootItemID, subtreeInfo)
 
-      if (nextTask.start !== undefined) {
-        if (subtreeItem.deferDate !== undefined) {
-          subtreeItem.deferDate =
-            Math.max(subtreeItem.deferDate, nextTask.start)
-        }
-        if (subtreeItem.dueDate !== undefined) {
-          subtreeItem.dueDate = Math.max(subtreeItem.dueDate, nextTask.start)
-        }
-      }
+    const numResults = repetitionResults.length
+    for (let i = 0; i < numResults; ++i) {
+      const result = repetitionResults[i]
+      const subtreeItem = draft.items.get(result.itemID)
+      if (subtreeItem === undefined) continue
+
+      subtreeItem.deferDate = result.deferDate
+      subtreeItem.dueDate = result.dueDate
     }
 
     return true
   }
 
   /**
-   * NOTE: This function searches for items in the given draft.
-   * This is all thanks to the draft queue containing only primitives.
+   * NOTE: This function searches for item information in the current state.
+   * However, it does use the queue array from the given draft, since the queue
+   * array contains only primitives.
    */
-  private smartInsertItemToQueueReducer = (draft: Draft<DataStoreState>,
-                                           itemID: ItemID) => {
-    // TODO improve this heuristic
+  private smartInsertItemsToQueueReducer = (draft: Draft<DataStoreState>,
+                                            itemIDs: ItemID[]) => {
+    // TODO optimize for single item insertion (without the need to sort)
 
-    const item = this.getItem(itemID)
-    if (item === undefined) return
+    const postOrderIndices = this.getPostOrderIndices()
 
-    let queue = draft.queue
-    let queueSize = queue.length
+    const proxyQueue = this.computeQueuePriorityProxies(
+      draft.queue, postOrderIndices)
 
-    let start = 0
-    let end = queueSize // exclusive
-    const selfDueDate = this.getEffectiveDueDate(item)
-    if (selfDueDate === undefined) {
-      // Search for the last item with deadline
-      // for (let i = queueSize - 1; i >= 0; --i) {
-      //   if (this.getItem(queue[i])!.dueDate !== undefined) {
-      //     start = i + 1
-      //     break
-      //   }
-      // }
-    } else {
-      let foundLowerBound = false
-      let foundUpperBound = false
-      start = 0
-      end = 0
-      for (let i = 0; i < queueSize; ++i) {
-        const dueDate = this.getEffectiveDueDate(this.getItem(queue[i])!)
-        if (dueDate === undefined) continue
-        if (dueDate < selfDueDate) {
-          start = i + 1
-          end = start
-        } else if (!foundLowerBound) { // dueDate === selfDueDate
-          start = i
-          end = start
-          foundLowerBound = true
-        }
-      }
-      for (let i = queueSize - 1; i > start; --i) {
-        const dueDate = this.getEffectiveDueDate(this.getItem(queue[i])!)
-        if (dueDate === undefined) continue
-        if (dueDate > selfDueDate) {
-          end = i
-        } else if (!foundUpperBound) { // dueDate === selfDueDate
-          end = i + 1
-          foundUpperBound = true
-        }
-      }
-    }
+    itemIDs.forEach(itemID => {
+      const item = this.getItem(itemID)
+      if (item === undefined) return
 
-    if (start >= end) {
-      draft.queue.splice(start, 0, itemID)
-      return
-    } else {
-      const scores = this.getLexicographicScores()
-      const selfScore = scores.get(itemID) || []
-      // TODO draft.items.get(parentID)!.childrenIDs.indexOf(itemID)
-      let candidate: number | undefined = undefined
-      let candidateScore: number[] | undefined = undefined
-      for (let i = start; i < end; ++i) {
-        const score = scores.get(queue[i]) || []
-        if (lexicographicLessThan(score, selfScore)) {
-          if (candidateScore === undefined ||
-            lexicographicLessThan(candidateScore, score)) {
-            candidate = i
-            candidateScore = score
-          }
-        }
-      }
+      proxyQueue.push({
+        itemID: item.id,
+        priorityProxy: getQueuePriorityProxy(
+          this.getEffectiveDueDate(item), postOrderIndices.get(item.id) || 0),
+      })
+    })
 
-      if (candidate === undefined) {
-        draft.queue.splice(start, 0, itemID)
-        return
-      } else {
-        draft.queue.splice(candidate + 1, 0, itemID)
-        return
-      }
-    }
+    proxyQueue.sort(
+      (a, b) => queuePriorityProxyCompare(a.priorityProxy, b.priorityProxy))
+
+    draft.queue = proxyQueue.map(item => item.itemID)
   }
 
   private removeItemFromQueueReducer = (draft: Draft<DataStoreState>,
@@ -739,6 +872,8 @@ export class DataStore {
       if (item === undefined) {
         throw new Error('Queue contained invalid itemID')
       }
+
+      if (!item.autoAdjustPriority) continue
 
       const dueDate = this.getEffectiveDueDate(item)
       if (dueDate !== undefined) {
@@ -774,7 +909,7 @@ export class DataStore {
       const item = draft.items.get(itemID)
       if (item === undefined) break
 
-      item.effectiveCost = 0
+      let childrenCost = 0
       const childrenIDs = item.childrenIDs
       const numChildren = childrenIDs.length
       for (let j = 0; j < numChildren; j++) {
@@ -782,9 +917,10 @@ export class DataStore {
         const child = (childID === lastUpdatedItemID ?
           draft.items.get(childID) : this.getItem(childID))
         if (child === undefined) continue
-        item.effectiveCost += child.effectiveCost
+        childrenCost += child.effectiveCost
       }
-      item.effectiveCost = Math.max(item.effectiveCost, item.cost)
+      item.effectiveCost = Math.max(childrenCost, item.cost)
+      item.residualCost = item.effectiveCost - childrenCost
 
       lastUpdatedItemID = itemID
       itemID = item.parentID
@@ -906,61 +1042,29 @@ export class DataStore {
         this.addItem(draft)
       }
 
-      this.addSession(dayIDNow(), SessionType.COMPLETED, 1, 3)
-      this.addSession(dayIDNow(), SessionType.PROJECTED, 2, 4)
-      this.addSession(dayIDNow() + 1, SessionType.SCHEDULED, 3, 6)
+      // this.addSession(dayIDNow(), SessionType.COMPLETED, 1, 3)
+      // this.addSession(dayIDNow(), SessionType.PROJECTED, 2, 4)
+      // this.addSession(dayIDNow() + 1, SessionType.SCHEDULED, 3, 6)
 
       this.addQuotaRule({
         type: 'constant',
         id: -1,
-        value: 1,
+        value: 5,
         dayOfWeek: [],
       } as ConstantQuotaRule)
 
       this.addQuotaRule({
         type: 'constant',
         id: -1,
-        value: 2,
-        dayOfWeek: [6, 0],
+        value: 4,
+        dayOfWeek: [1, 2, 3, 4, 5],
       } as ConstantQuotaRule)
 
       this.addQuotaRule({
         type: 'constant',
         id: -1,
-        value: 2,
-        dayOfWeek: [6, 1],
-      } as ConstantQuotaRule)
-
-      this.addQuotaRule({
-        type: 'constant',
-        id: -1,
-        value: 2,
-        dayOfWeek: [4, 1, 2, 3, 5],
-      } as ConstantQuotaRule)
-
-      this.addQuotaRule({
-        type: 'constant',
-        id: -1,
-        value: 2,
-        firstDate: dayIDNow() + 1,
-        lastDate: dayIDNow() + 4,
-        dayOfWeek: [1, 3, 5],
-      } as ConstantQuotaRule)
-
-      this.addQuotaRule({
-        type: 'constant',
-        id: -1,
-        value: 2,
-        lastDate: dayIDNow() + 4,
-        dayOfWeek: [1, 3, 5],
-      } as ConstantQuotaRule)
-
-      this.addQuotaRule({
-        type: 'constant',
-        id: -1,
-        value: 2,
-        firstDate: dayIDNow() + 4,
-        dayOfWeek: [1, 3, 5],
+        value: 8,
+        dayOfWeek: [0, 6],
       } as ConstantQuotaRule)
     })
     this.clearUndo()
@@ -1024,7 +1128,7 @@ export class DataStore {
     if (newStatus === ItemStatus.ACTIVE) {
       this._state =
         produce(this._state, draft => {
-          this.smartInsertItemToQueueReducer(draft, id)
+          this.smartInsertItemsToQueueReducer(draft, [id])
         })
     }
     this._state =
@@ -1068,17 +1172,17 @@ export class DataStore {
     if (shouldRepeat) {
       const subtree = this.getSubtreeItems(itemID)
       let repeatSuccessful = false
+      const currentDate = this.getCurrentDayID()
       this._state = produce(this._state, draft => {
-        repeatSuccessful = this.repeatSubtreeReducer(draft, itemID, subtree)
+        repeatSuccessful =
+          this.repeatSubtreeReducer(draft, itemID, subtree, currentDate)
       })
       if (repeatSuccessful) {
         repeated = true
         this._state =
           produce(this._state, draft => {
             this.removeItemsFromQueueReducer(draft, subtree)
-            subtree.forEach(itemID => {
-              this.smartInsertItemToQueueReducer(draft, itemID)
-            })
+            this.smartInsertItemsToQueueReducer(draft, subtree)
           })
       } else {
         this._state =
@@ -1093,9 +1197,7 @@ export class DataStore {
           this._state =
             produce(this._state, draft => {
               this.removeItemsFromQueueReducer(draft, subtree)
-              subtree.forEach(itemID => {
-                this.smartInsertItemToQueueReducer(draft, itemID)
-              })
+              this.smartInsertItemsToQueueReducer(draft, subtree)
             })
         } else {
           this._state =
@@ -1450,12 +1552,11 @@ export class DataStore {
     let result = i.deferDate
     while (i !== undefined && i.parentID !== undefined) {
       i = this.getItem(i.parentID)
-      if (i !== undefined && i.deferDate !== undefined) {
-        if (result === undefined) {
-          result = i.deferDate
-        } else {
-          result = Math.max(result, i.deferDate)
-        }
+      if (i === undefined) continue
+      if (result === undefined) {
+        result = i.deferDate
+      } else {
+        result = optionalClamp(result, i.deferDate, i.dueDate)
       }
     }
     return result
@@ -1466,12 +1567,11 @@ export class DataStore {
     let result = i.dueDate
     while (i !== undefined && i.parentID !== undefined) {
       i = this.getItem(i.parentID)
-      if (i !== undefined && i.dueDate !== undefined) {
-        if (result === undefined) {
-          result = i.dueDate
-        } else {
-          result = Math.min(result, i.dueDate)
-        }
+      if (i === undefined) continue
+      if (result === undefined) {
+        result = i.dueDate
+      } else {
+        result = optionalClamp(result, i.deferDate, i.dueDate)
       }
     }
     return result
@@ -1486,6 +1586,15 @@ export class DataStore {
       }
     }
     return false
+  }
+
+  getAllEffectiveInfo(): Map<ItemID, EffectiveItemInfo> {
+    // TODO optimize: use DFS
+    const result = new Map<ItemID, EffectiveItemInfo>()
+    this.state.items.forEach(item => {
+      result.set(item.id, this.getEffectiveInfo(item))
+    })
+    return result
   }
 
   getEffectiveInfo(item: Item): EffectiveItemInfo {
@@ -1503,26 +1612,30 @@ export class DataStore {
     let minParentDueDate: DayID | undefined = undefined
     while (i !== undefined && i.parentID !== undefined) {
       i = this.getItem(i.parentID)
-      if (i !== undefined && i.deferDate !== undefined) {
-        if (result.deferDate === undefined) {
-          result.deferDate = i.deferDate
-        } else {
-          result.deferDate = Math.max(result.deferDate, i.deferDate)
-        }
+      if (i === undefined) continue
+
+      if (result.deferDate === undefined) {
+        result.deferDate = i.deferDate
+      } else {
+        result.deferDate =
+          optionalClamp(result.deferDate, i.deferDate, i.dueDate)
       }
-      if (i !== undefined && i.dueDate !== undefined) {
-        if (result.dueDate === undefined) {
-          result.dueDate = i.dueDate
-        } else {
-          result.dueDate = Math.min(result.dueDate, i.dueDate)
-        }
+
+      if (result.dueDate === undefined) {
+        result.dueDate = i.dueDate
+      } else {
+        result.dueDate = optionalClamp(result.dueDate, i.deferDate, i.dueDate)
+      }
+
+      if (i.dueDate !== undefined) {
         if (minParentDueDate === undefined) {
           minParentDueDate = i.dueDate
         } else {
           minParentDueDate = Math.min(minParentDueDate, i.dueDate)
         }
       }
-      if (i !== undefined && i.repeat !== undefined) {
+
+      if (i.repeat !== undefined) {
         // Use ancestor repeat if exists
         result.repeat = i.repeat
         result.repeatEndDate = i.repeatEndDate
@@ -1593,28 +1706,32 @@ export class DataStore {
     return true
   }
 
-  private getLexicographicScores(): Map<ItemID, number[]> {
-    const result = new Map<ItemID, number[]>()
+  /**
+   * The indices are guaranteed to be non-negative.
+   * Higher index means an item comes later in post-order tree traversal.
+   */
+  getPostOrderIndices(): Map<ItemID, number> {
+    const result = new Map<ItemID, number>()
     const count = this.state.rootItemIDs.length
+    const counter = {value: 1}
     for (let i = 0; i < count; i++) {
       const item = this.getItem(this.state.rootItemIDs[i])
       if (item === undefined) continue
-      this.getLexicographicScoresInternal(item, [i], result)
+      this.getPostOrderIndicesInternal(item, counter, result)
     }
     return result
   }
 
-  private getLexicographicScoresInternal(item: Item, temp: number[],
-                                         result: Map<ItemID, number[]>) {
-    result.set(item.id, [...temp])
+  private getPostOrderIndicesInternal(item: Item, counter: { value: number },
+                                      result: Map<ItemID, number>) {
     const numChildren = item.childrenIDs.length
     for (let i = 0; i < numChildren; i++) {
       const child = this.getItem(item.childrenIDs[i])
       if (child === undefined) continue
-      temp.push(i)
-      this.getLexicographicScoresInternal(child, temp, result)
-      temp.pop()
+      this.getPostOrderIndicesInternal(child, counter, result)
     }
+    result.set(item.id, counter.value)
+    counter.value++
   }
 
   public getSubtreeItems(itemID: ItemID): ItemID[] {
@@ -1713,5 +1830,102 @@ export class DataStore {
         }
       }
     }
+  }
+
+  /**
+   * NOTE: This is only valid as long as items are not changed/added/deleted.
+   */
+  computeQueuePriorityProxies(
+    queue: ItemID[],
+    postOrderIndices?: Map<ItemID, number>, /* For optional performance*/
+  ): {
+    itemID: ItemID,
+    priorityProxy: QueuePriorityProxy,
+  }[] {
+    if (postOrderIndices === undefined) {
+      postOrderIndices = this.getPostOrderIndices()
+    }
+
+    const currentDayID = this.getCurrentDayID()
+
+    const result: {
+      itemID: ItemID,
+      priorityProxy: QueuePriorityProxy,
+    }[] = []
+
+    const queueSize = queue.length
+    for (let i = 0; i < queueSize; i++) {
+      const itemID = queue[i]
+      const item = this.getItem(itemID)
+      if (item === undefined) continue
+      result.push({
+        itemID,
+        priorityProxy: getQueuePriorityProxy(
+          this.getEffectiveDueDate(item), postOrderIndices.get(itemID) || 0),
+      })
+    }
+
+    // NOTE: Below makes the assumption that items in the queue are unique
+
+    const pivots = result.map(
+      (item, index) => ({index, priorityProxy: item.priorityProxy}))
+      .filter(item => item.priorityProxy[0] !== undefined)
+
+    const lisIndices = longestIncreasingSubsequence(
+      pivots,
+      (a, b) => queuePriorityProxyCompare(a.priorityProxy, b.priorityProxy),
+    )
+
+    // Interpolate due dates between pivots
+
+    if (lisIndices.length > 0) {
+      // Note that both pivot 1 and pivot 2 are exclusive.
+      const interpolateDueDates = (pivot1: number, pivot2: number,
+                                   dueDate1: DayID, dueDate2?: DayID) => {
+        for (let i = pivot1 + 1; i < pivot2; i++) {
+          if (dueDate2 === undefined) {
+            result[i].priorityProxy[0] = undefined
+          } else {
+            result[i].priorityProxy[0] = Math.round(
+              clampedLinearMap(pivot1, pivot2, dueDate1, dueDate2, i))
+          }
+        }
+      }
+
+      let pivot = pivots[lisIndices[0]]
+      interpolateDueDates(
+        -1, pivot.index, Math.min(currentDayID, pivot.priorityProxy[0]!),
+        pivot.priorityProxy[0]!,
+      )
+
+      for (let i = 1; i < lisIndices.length; ++i) {
+        const pivot1 = pivots[lisIndices[i - 1]]
+        const pivot2 = pivots[lisIndices[i]]
+        interpolateDueDates(
+          pivot1.index, pivot2.index, pivot1.priorityProxy[0]!,
+          pivot2.priorityProxy[0]!,
+        )
+      }
+
+      pivot = pivots[lisIndices[lisIndices.length - 1]]
+      interpolateDueDates(
+        pivot.index, result.length,
+        pivot.priorityProxy[0]!,
+        undefined,
+      )
+    }
+
+    // Fix unnatural orderings
+
+    for (let i = 1; i < result.length; ++i) {
+      const item1 = result[i - 1]
+      const item2 = result[i]
+      if (queuePriorityProxyCompare(item1.priorityProxy, item2.priorityProxy)
+        >= 0) { // Unnatural order
+        item2.priorityProxy[1] = item1.priorityProxy[1] + 1
+      }
+    }
+
+    return result
   }
 }

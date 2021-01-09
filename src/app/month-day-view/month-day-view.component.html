@@ -33,7 +33,8 @@
     <div class="progress-bar-filled" [style.width]="progress * 100 + '%'"></div>
   </div>
   <div class="content">
-    <div *ngFor="let session of sessions" class="session"
+    <div *ngFor="let session of sessions; trackBy:sessionTrackByFn"
+         class="session"
          [style.background-color]="session.color.fade(0.8).string()"
          [class.container-faded]="session.done"
          [matMenuTriggerFor]="sessionMenu"

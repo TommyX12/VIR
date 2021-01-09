@@ -10,6 +10,7 @@ import {SharedModule} from '../shared/shared.module'
 import {MatSnackBarModule} from '@angular/material/snack-bar'
 import {MatDividerModule} from '@angular/material/divider'
 import {QuickQuotaEditModule} from '../quick-quota-edit/quick-quota-edit.module'
+import {SessionChipModule} from '../session-chip/session-chip.module'
 
 
 @NgModule({
@@ -25,6 +26,7 @@ import {QuickQuotaEditModule} from '../quick-quota-edit/quick-quota-edit.module'
     MatSnackBarModule,
     MatDividerModule,
     QuickQuotaEditModule,
+    SessionChipModule,
   ],
   exports: [DayViewComponent],
 })

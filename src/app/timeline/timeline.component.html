@@ -44,23 +44,22 @@
     </table>
   </div>
   <div class="content">
-    <table class="calendar">
-      <tbody>
-      <tr *ngFor="let row of rows; trackBy:identity"
-          [style.height]="(100 / rows.length) + '%'">
-        <td *ngFor="let column of columns; trackBy:identity">
-          <app-month-day-view
-            #monthDayView
-            [home]="home"
-            [quota]="getQuota(row, column)"
-            [dayID]="getDayIDOfCell(row, column)"
-            [todayDayID]="todayDayID"
-            [dayData]="getDayData(row, column)"
-            [forceDisplayMonth]="shouldDisplayMonth(row, column)">
-          </app-month-day-view>
-        </td>
-      </tr>
-      </tbody>
-    </table>
+    <div *ngFor="let row of rows; trackBy:identity"
+         [style.height]="(100 / rows.length) + '%'"
+         class="calendar-row">
+      <div *ngFor="let column of columns; trackBy:identity"
+           [style.width]="(100 / columns.length) + '%'"
+           class="calendar-column">
+        <app-month-day-view
+          #monthDayView
+          [home]="home"
+          [quota]="getQuota(row, column)"
+          [dayID]="getDayIDOfCell(row, column)"
+          [todayDayID]="todayDayID"
+          [dayData]="getDayData(row, column)"
+          [forceDisplayMonth]="shouldDisplayMonth(row, column)">
+        </app-month-day-view>
+      </div>
+    </div>
   </div>
 </div>

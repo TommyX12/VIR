@@ -16,6 +16,9 @@ export type ItemID = number
 
 export type DayID = number
 
+export const NEG_INF_DAY_ID = -1000000000
+export const INF_DAY_ID = 1000000000
+
 export class DisplayDate {
   /**
    * @param year
@@ -109,7 +112,15 @@ export const REPEAT_TYPE_FACTORY_BY_TYPE = (() => {
 export class Item {
   [immerable] = true
 
+  /**
+   * The maximum of self cost and children effective cost
+   */
   effectiveCost: number
+
+  /**
+   * Effective cost subtracted by children effective cost
+   */
+  residualCost: number
 
   constructor(
     public readonly id: ItemID,
@@ -130,6 +141,7 @@ export class Item {
   ) {
     this.repeat = deepcopy(repeat)
     this.effectiveCost = cost
+    this.residualCost = cost
   }
 
   toDraft() {
@@ -219,6 +231,7 @@ export const SESSION_TYPE_TO_ICON = {
 
 export type Repeater = (firstTask: Task, itemInfo: EffectiveItemInfo,
                         maxProjectionEndDate: DayID) => () => Task | undefined
+
 /**
  * NOTE:
  * - Due date is assumed to always exist, otherwise repeat is not allowed.
@@ -233,10 +246,21 @@ export const DEFAULT_REPEATERS: {
     type: 'day',
     repeater: (firstTask, itemInfo,
                maxProjectionEndDate) => {
+      /*
+       * Currently the defer date is always set to last due date + 1.
+       * If needed, the logic to use startToEnd offset:
+       *
+       * const startToEnd = (firstTask.start !== undefined ?
+       *   firstTask.end - firstTask.start : undefined)
+       *
+       * Then set each task's start to:
+       *
+       * start: startToEnd === undefined ? lastEnd + 1 :
+       *   Math.max(lastEnd + 1, end - startToEnd),
+       */
+
       if (firstTask.end === undefined) return () => undefined
 
-      const startToEnd = (firstTask.start !== undefined ?
-        firstTask.end - firstTask.start : undefined)
       let end = firstTask.end
       const repeatInterval = itemInfo.repeatInterval
       if (repeatInterval <= 0) return () => undefined
@@ -253,8 +277,7 @@ export const DEFAULT_REPEATERS: {
         const result = {
           itemID: firstTask.itemID,
           cost: firstTask.cost,
-          start: startToEnd === undefined ? lastEnd + 1 :
-            Math.max(lastEnd + 1, end - startToEnd),
+          start: lastEnd + 1,
           end,
         }
         lastEnd = end
@@ -268,8 +291,6 @@ export const DEFAULT_REPEATERS: {
                maxProjectionEndDate) => {
       if (firstTask.end === undefined) return () => undefined
 
-      const startToEnd = (firstTask.start !== undefined ?
-        firstTask.end - firstTask.start : undefined)
       let end = firstTask.end
       const repeatInterval = itemInfo.repeatInterval
       if (repeatInterval <= 0) return () => undefined
@@ -325,8 +346,7 @@ export const DEFAULT_REPEATERS: {
         const result = {
           itemID: firstTask.itemID,
           cost: firstTask.cost,
-          start: startToEnd === undefined ? lastEnd + 1 :
-            Math.max(lastEnd + 1, end - startToEnd),
+          start: lastEnd + 1,
           end,
         }
         lastEnd = end
@@ -340,8 +360,6 @@ export const DEFAULT_REPEATERS: {
                maxProjectionEndDate) => {
       if (firstTask.end === undefined) return () => undefined
 
-      const startToEnd = (firstTask.start !== undefined ?
-        firstTask.end - firstTask.start : undefined)
       let end = firstTask.end
       const repeatInterval = itemInfo.repeatInterval
       if (repeatInterval <= 0) return () => undefined
@@ -367,8 +385,7 @@ export const DEFAULT_REPEATERS: {
         const result = {
           itemID: firstTask.itemID,
           cost: firstTask.cost,
-          start: startToEnd === undefined ? lastEnd + 1 :
-            Math.max(lastEnd + 1, end - startToEnd),
+          start: lastEnd + 1,
           end,
         }
         lastEnd = end
@@ -382,8 +399,6 @@ export const DEFAULT_REPEATERS: {
                maxProjectionEndDate) => {
       if (firstTask.end === undefined) return () => undefined
 
-      const startToEnd = (firstTask.start !== undefined ?
-        firstTask.end - firstTask.start : undefined)
       let end = firstTask.end
       const repeatInterval = itemInfo.repeatInterval
       if (repeatInterval <= 0) return () => undefined
@@ -407,8 +422,7 @@ export const DEFAULT_REPEATERS: {
         const result = {
           itemID: firstTask.itemID,
           cost: firstTask.cost,
-          start: startToEnd === undefined ? lastEnd + 1 :
-            Math.max(lastEnd + 1, end - startToEnd),
+          start: lastEnd + 1,
           end,
         }
         lastEnd = end

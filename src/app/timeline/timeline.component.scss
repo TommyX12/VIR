@@ -73,3 +73,16 @@
 .calendar td {
   border: 1px solid #88888866;
 }
+
+.calendar-row {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.calendar-column {
+  height: 100%;
+  border: 1px solid #88888866;
+}
+

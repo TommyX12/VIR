@@ -33,7 +33,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   todayDayID = dayIDNow(this.dayStartOffsetMinutes)
 
-  weekStartDate = startOfWeek(new Date())
+  private _weekStartDate = startOfWeek(new Date())
 
   private dataStoreChangeSubscription?: Subscription
   private dataAnalyzerChangeSubscription?: Subscription
@@ -71,6 +71,15 @@ export class TimelineComponent implements OnInit, OnDestroy {
     readonly home: HomeComponent,
   ) {
     this.viewRange = 'month' // Ensure row is updated
+  }
+
+  get weekStartDate(): Date {
+    return this._weekStartDate
+  }
+
+  set weekStartDate(value: Date) {
+    this._weekStartDate = value
+    this.refresh()
   }
 
   get viewRange() {

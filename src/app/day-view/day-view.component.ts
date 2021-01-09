@@ -311,6 +311,29 @@ export class DayViewComponent implements OnInit, OnDestroy {
       })
     })
 
+    const projections = this.dataAnalyzer.getProjections(this.dayID)
+    if (projections !== undefined) {
+      projections.forEach((count, itemID) => {
+        const item = this.dataStore.getItem(itemID)
+        if (item !== undefined) {
+          getOrCreate(this.sessions, SessionType.PROJECTED, () => []).push({
+            canItemRepeat: item.repeat !== undefined &&
+              !this.dataStore.getHasAncestorRepeat(item),
+            scheduled: false,
+            projected: true,
+            type: SessionType.PROJECTED,
+            item,
+            count,
+            color: this.dataStore.getItemColor(item),
+            done: false,
+            itemDone: item.status === ItemStatus.COMPLETED,
+          })
+
+          this.totalCount += count
+        }
+      })
+    }
+
     this.sessions.forEach(sessions => {
       sessions.sort((a, b) => {
         if (a.count !== b.count) return b.count - a.count

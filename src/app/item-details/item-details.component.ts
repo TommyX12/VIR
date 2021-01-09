@@ -155,7 +155,7 @@ export class ItemDetailsComponent implements AfterViewInit {
         predecessorID = data.initialPriorityPredecessor
       }
     } else {
-      this.dataStore.getQueuePredecessor(this.draft.id)
+      predecessorID = this.dataStore.getQueuePredecessor(this.draft.id)
     }
     if (predecessorID !== undefined) {
       this._priorityPredecessorItemKey =

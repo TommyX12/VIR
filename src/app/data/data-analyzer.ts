@@ -1,20 +1,38 @@
 import {Injectable} from '@angular/core'
-import {DataStore, DataStoreState} from './data-store'
+import {
+  DataStore,
+  DataStoreState,
+  EffectiveItemInfo,
+  generateSubtreeRepetition,
+  getQueuePriorityProxy,
+  QueuePriorityProxy,
+  queuePriorityProxyCompare,
+  SubtreeRepetitionInfo,
+} from './data-store'
 import {BehaviorSubject} from 'rxjs'
 import {
   DayID,
   DEFAULT_REPEATERS,
+  INF_DAY_ID,
   Item,
   ItemID,
   ItemStatus,
+  NEG_INF_DAY_ID,
   Repeater,
   SessionType,
 } from './common'
-import {dayIDNow} from '../util/time-util'
 import {debounceTime} from 'rxjs/operators'
-import {Counter} from '../util/util'
+import {
+  arrayToMap,
+  Counter,
+  getOrCreate,
+  optionalClamp,
+  PriorityQueue,
+} from '../util/util'
 
 const ANALYZER_UPDATE_DELAY = 500
+
+const EMPTY_LIST_CREATOR = (): any[] => []
 
 export interface Task {
   itemID: ItemID
@@ -37,6 +55,121 @@ export interface Task {
   inactive?: boolean
 }
 
+export interface TaskSchedulingInfo {
+  itemID: ItemID
+  priorityProxy: QueuePriorityProxy
+  remainingCost: number
+}
+
+export interface TaskSchedulingEndpoint {
+  taskInfo: TaskSchedulingInfo
+  dayID: DayID
+  isEnd: boolean
+}
+
+export interface ProjectionResult {
+  sessions: Map<DayID, Map<ItemID, number>>
+}
+
+export abstract class ProjectionStrategy {
+  /**
+   * @param firstDayID
+   * @param lastDayID
+   * @param taskInfoList
+   * @param taskInfoEndpoints Must be sorted in ascending order by time.
+   *     Also, due dates must be 1 + original value.
+   * @param sessionSlots
+   */
+  abstract generate(firstDayID: DayID, lastDayID: DayID,
+                    taskInfoList: TaskSchedulingInfo[],
+                    taskInfoEndpoints: TaskSchedulingEndpoint[],
+                    sessionSlots: Map<DayID, number>): ProjectionResult
+}
+
+export class GreedyProjectionStrategy extends ProjectionStrategy {
+  generate(firstDayID: DayID, lastDayID: DayID,
+           taskInfoList: TaskSchedulingInfo[],
+           taskInfoEndpoints: TaskSchedulingEndpoint[],
+           sessionSlots: Map<DayID, number>): ProjectionResult {
+    const result = {
+      sessions: new Map<DayID, Map<ItemID, number>>(),
+    }
+    const {sessions} = result
+
+    const q = new PriorityQueue<TaskSchedulingInfo>({
+      comparator: (a, b) => queuePriorityProxyCompare(
+        a.priorityProxy, b.priorityProxy),
+    })
+
+    let endpointPtr = 0 // Number of events processed
+
+    const sessionOfDayCreator = () => new Map<ItemID, number>()
+
+    interface AuxillaryInfo {
+      deleted: boolean,
+
+      /**
+       * Number of projected sessions already planned
+       */
+      count: number,
+    }
+
+    const auxillaryInfoCreator = (): AuxillaryInfo => ({
+      deleted: false,
+      count: 0,
+    })
+    const auxillaryInfoMap = new Map<TaskSchedulingInfo, AuxillaryInfo>()
+
+    for (let d = firstDayID; d <= lastDayID; ++d) {
+      // Process endpoints
+      while (endpointPtr < taskInfoEndpoints.length) {
+        const endpoint = taskInfoEndpoints[endpointPtr]
+        if (endpoint.dayID > d) {
+          break
+        }
+
+        if (endpoint.isEnd) {
+          getOrCreate(
+            auxillaryInfoMap, endpoint.taskInfo, auxillaryInfoCreator).deleted =
+            true
+        } else {
+          q.queue(endpoint.taskInfo)
+        }
+
+        endpointPtr++
+      }
+
+      let quota = sessionSlots.get(d) || 0
+      while (quota > 0) {
+        while (
+          q.length > 0 &&
+          getOrCreate(auxillaryInfoMap, q.peek(), auxillaryInfoCreator).deleted
+          ) {
+          q.dequeue()
+        }
+        if (q.length <= 0) break
+        const info = q.peek()
+        const auxInfo = getOrCreate(
+          auxillaryInfoMap, info, auxillaryInfoCreator)
+        let count = Math.min(
+          Math.max(info.remainingCost - auxInfo.count, 0), quota)
+        if (count > 0) {
+          const sessionsOfDay = getOrCreate(sessions, d, sessionOfDayCreator)
+          sessionsOfDay.set(
+            info.itemID, (sessionsOfDay.get(info.itemID) || 0) + count)
+          quota -= count
+          auxInfo.count += count
+        }
+        if (auxInfo.count >= info.remainingCost) {
+          q.dequeue()
+        }
+      }
+    }
+
+    return result
+  }
+}
+
 /**
  * NOTE: When data store updates, any user of analyzer data must query the
  * analyzer again, since the information might be out of date.
@@ -57,6 +190,7 @@ export class DataAnalyzer {
   private maxProjectionRange = 365
 
   private itemIDToTasks = new Map<ItemID, Task[]>()
+  private dayIDToProjections = new Map<DayID, Map<ItemID, number>>()
 
   constructor(
     private readonly dataStore: DataStore,
@@ -69,7 +203,7 @@ export class DataAnalyzer {
     this.dataStore.onChange.pipe(
       debounceTime(ANALYZER_UPDATE_DELAY),
     ).subscribe(dataStore => {
-      this.processDataStore(dataStore)
+      this.processDataStore()
     })
   }
 
@@ -79,44 +213,64 @@ export class DataAnalyzer {
     }
   }
 
-  private processDataStore(dataStore: DataStore) {
+  private processDataStore() {
     // TODO use web worker
 
     // Clean-up
 
     this.itemIDToTasks.clear()
+    this.dayIDToProjections.clear()
 
-    const maxProjectionEndDate = dayIDNow() + this.maxProjectionRange
+    // Caching auxillary info
 
-    const tasks = this.generateTasks(dataStore, maxProjectionEndDate)
+    const currentDate = this.dataStore.getCurrentDayID()
+    const maxProjectionEndDate = currentDate + this.maxProjectionRange
+    const effectiveInfoCache = this.dataStore.getAllEffectiveInfo()
+    const postOrderIndices = this.dataStore.getPostOrderIndices()
+    const parentChains = this.cacheParentChains()
+    const sessionSlots = this.cacheSessionSlots(
+      currentDate, maxProjectionEndDate)
 
-    const numTasks = tasks.length
-    for (let i = 0; i < numTasks; i++) {
-      const task = tasks[i]
-      const list = this.itemIDToTasks.get(task.itemID)
-      if (list === undefined) {
-        this.itemIDToTasks.set(task.itemID, [task])
-      } else {
-        list.push(task)
+
+    // Generate tasks
+
+    const itemIDToTasks = this.generateTasks(
+      effectiveInfoCache, currentDate, maxProjectionEndDate)
+    this.itemIDToTasks = itemIDToTasks
+
+    const tasks: Task[] = []
+    itemIDToTasks.forEach(list => {
+      for (let i = 0; i < list.length; i++) {
+        tasks.push(list[i])
       }
-    }
+    })
 
-    // console.log(tasks)
+    // console.log(tasks) // TODO remove me
 
-    // Modifies tasks in-place
-    this.trackProgress(dataStore, tasks, maxProjectionEndDate)
+    // Track progress. Modifies tasks in-place
 
-    this.currentDataStoreState = dataStore.state
+    this.trackProgress(tasks, parentChains, maxProjectionEndDate)
+
+    // Generate projections
+
+    this.generateProjections(
+      itemIDToTasks, postOrderIndices, sessionSlots, currentDate,
+      maxProjectionEndDate,
+    )
+
+    // Finalize
+
+    this.currentDataStoreState = this.dataStore.state
     this.onChangeSubject.next(this)
   }
 
-  private trackProgress(dataStore: DataStore, tasks: Task[],
+  private trackProgress(tasks: Task[], parentChains: Map<ItemID, ItemID[]>,
                         maxProjectionEndDate: DayID) {
     const doneCounter = new Counter<ItemID>()
     const plannedCounter = new Counter<ItemID>()
 
     // TODO improve this
-    const earliestDayID = dataStore.state.timelineData.getEarliestDayID()
+    const earliestDayID = this.dataStore.state.timelineData.getEarliestDayID()
 
     if (earliestDayID === undefined) {
       // There is no record at all.
@@ -135,15 +289,6 @@ export class DataAnalyzer {
       startEndpoint?: Endpoint // If undefined, this endpoint is a due date
                                // endpoint
     }
-
-    // TODO optimize with DFS
-    const parentChains = new Map<ItemID, ItemID[]>()
-    tasks.forEach(task => {
-      if (!parentChains.has(task.itemID)) {
-        parentChains.set(
-          task.itemID, dataStore.getAncestorsPlusSelf(task.itemID))
-      }
-    })
 
     // Start of search range
     let searchStartDayID: number | undefined = undefined
@@ -190,7 +335,7 @@ export class DataAnalyzer {
       const endpoint = endpoints[i]
       // TODO optimize: maybe use map key access to skip over empty day data
       while (ptr < endpoint.dayID) {
-        const dayData = dataStore.getDayData(ptr)
+        const dayData = this.dataStore.getDayData(ptr)
         dayData.sessions.get(SessionType.COMPLETED)
           ?.forEach((count, itemID) => {
             const parentChain = parentChains.get(itemID)
@@ -236,21 +381,34 @@ export class DataAnalyzer {
   /**
    * NOTE: The tasks are generated in due date order per each item
    */
-  private generateTasks(dataStore: DataStore, maxProjectionEndDate: DayID) {
-    const result: Task[] = []
-    dataStore.state.items.forEach(item => {
-      this.generateTasksForItem(item, maxProjectionEndDate, result)
+  private generateTasks(effectiveInfoCache: Map<ItemID, EffectiveItemInfo>,
+                        currentDate: DayID,
+                        maxProjectionEndDate: DayID) {
+    const result = new Map<ItemID, Task[]>()
+    this.dataStore.state.items.forEach(item => {
+      this.generateFirstTaskForItem(
+        item, effectiveInfoCache, result)
+    })
+    this.dataStore.state.items.forEach(item => {
+      const tasks = result.get(item.id)
+      if (tasks === undefined || tasks.length === 0) return
+      this.generateRepeatedTasksForItem(
+        item, tasks[0], effectiveInfoCache, currentDate, maxProjectionEndDate,
+        result,
+      )
     })
     return result
   }
 
-  private generateTasksForItem(item: Item, maxProjectionEndDate: DayID,
-                               result: Task[]) {
-    const itemInfo = this.dataStore.getEffectiveInfo(item)
+  private generateFirstTaskForItem(item: Item,
+                                   effectiveInfoCache: Map<ItemID, EffectiveItemInfo>,
+                                   result: Map<ItemID, Task[]>) {
+    const itemInfo = effectiveInfoCache.get(item.id)
+    if (itemInfo === undefined) return
 
     const firstTask = {
       itemID: item.id,
-      cost: item.cost,
+      cost: item.residualCost,
       start: itemInfo.deferDate,
       end: itemInfo.dueDate,
       inactive: item.status === ItemStatus.COMPLETED,
@@ -260,13 +418,27 @@ export class DataAnalyzer {
       firstTask.start = Math.min(firstTask.start, firstTask.end)
     }
 
-    result.push(firstTask)
+    getOrCreate(result, item.id, EMPTY_LIST_CREATOR).push(firstTask)
+  }
 
-    if (itemInfo.repeat === undefined ||
-      (!itemInfo.hasActiveAncestorRepeat &&
-        item.status === ItemStatus.COMPLETED)) {
+  private generateRepeatedTasksForItem(item: Item,
+                                       firstTask: Task,
+                                       effectiveInfoCache: Map<ItemID, EffectiveItemInfo>,
+                                       currentDate: DayID,
+                                       maxProjectionEndDate: DayID,
+                                       result: Map<ItemID, Task[]>) {
+    const itemInfo = effectiveInfoCache.get(item.id)
+    if (itemInfo === undefined) return
+
+    if (itemInfo.repeat === undefined || itemInfo.hasAncestorRepeat ||
+      firstTask.end === undefined) { // Cannot self repeat
       return
     }
+    // if (itemInfo.repeat === undefined ||
+    //   (!itemInfo.hasActiveAncestorRepeat &&
+    //     item.status === ItemStatus.COMPLETED)) {
+    //   return
+    // }
 
     const repeater = this.repeaters.get(itemInfo.repeat.type)
     if (repeater === undefined) {
@@ -277,10 +449,57 @@ export class DataAnalyzer {
 
     const r = repeater(firstTask, itemInfo, maxProjectionEndDate)
 
+    const subtree = this.dataStore.getSubtreeItems(item.id)
+
+    const subtreeInfo: SubtreeRepetitionInfo[] = []
+
+    const count = subtree.length
+    for (let i = 0; i < count; i++) {
+      const subtreeItemID = subtree[i]
+      const subtreeItemInfo = effectiveInfoCache.get(subtreeItemID)
+      if (subtreeItemInfo === undefined) continue
+
+      const startOffset = subtreeItemInfo.deferDate === undefined ? undefined :
+        firstTask.end - subtreeItemInfo.deferDate
+      const endOffset = subtreeItemInfo.dueDate === undefined ? 0 :
+        firstTask.end - subtreeItemInfo.dueDate
+
+      subtreeInfo.push({
+        itemID: subtreeItemID,
+        startOffset,
+        endOffset,
+      })
+    }
+
     while (true) {
       const nextTask = r()
       if (nextTask === undefined) break
-      result.push(nextTask)
+      // Skip tasks ending before today
+      if (!(nextTask.end === undefined || nextTask.end >= currentDate)) {
+        continue
+      }
+
+      const repetitionResults = generateSubtreeRepetition(
+        nextTask, item.id, subtreeInfo)
+
+      if (subtreeInfo.length === 1) { // No children
+        getOrCreate(result, item.id, EMPTY_LIST_CREATOR).push(nextTask)
+      } else {
+        const numResults = repetitionResults.length
+        for (let i = 0; i < numResults; ++i) {
+          const repResult = repetitionResults[i]
+          const subtreeItem = this.dataStore.getItem(repResult.itemID)
+          if (subtreeItem === undefined) continue
+          getOrCreate(result, subtreeItem.id, EMPTY_LIST_CREATOR).push({
+            itemID: subtreeItem.id,
+            cost: subtreeItem.residualCost,
+            start: repResult.deferDate === undefined ? nextTask.start :
+              optionalClamp(repResult.deferDate, nextTask.start, nextTask.end),
+            end: repResult.dueDate === undefined ? nextTask.end :
+              optionalClamp(repResult.dueDate, nextTask.start, nextTask.end),
+          })
+        }
+      }
     }
   }
 
@@ -293,5 +512,123 @@ export class DataAnalyzer {
       return undefined
     }
     return this.itemIDToTasks.get(itemID)
+  }
+
+  getProjections(dayID: DayID): Map<ItemID, number> | undefined {
+    const result = this.dayIDToProjections.get(dayID)
+    if (result === undefined) return undefined
+
+    let invalidItemIDs: number[] | null = null
+    result.forEach((_, itemID) => {
+      if (!this.dataStore.hasItem(itemID)) {
+        if (invalidItemIDs === null) invalidItemIDs = []
+        invalidItemIDs.push(itemID)
+      }
+    })
+    if (invalidItemIDs !== null) {
+      // NOTE: There's a compiler issue forcing the use of ! here.
+      invalidItemIDs!.forEach(itemID => result.delete(itemID))
+    }
+    return result
+  }
+
+  private generateProjections(itemIDToTasks: Map<ItemID, Task[]>,
+                              postOrderIndices: Map<ItemID, number>,
+                              sessionSlots: Map<DayID, number>,
+                              currentDate: DayID,
+                              maxProjectionEndDate: DayID) {
+    const existingPriorityProxiesMap = arrayToMap(
+      this.dataStore.computeQueuePriorityProxies(
+        this.dataStore.state.queue,
+        postOrderIndices,
+      ), item => item.itemID, item => item.priorityProxy)
+
+    const taskInfoList: TaskSchedulingInfo[] = []
+    const taskInfoEndpoints: TaskSchedulingEndpoint[] = []
+
+    itemIDToTasks.forEach((tasks, itemID) => {
+      let isFirstTask = true
+      const size = tasks.length
+      for (let i = 0; i < size; ++i) {
+        const task = tasks[i]
+
+        if (task.inactive) {
+          isFirstTask = false
+          continue
+        }
+
+        const existingPriorityProxy = existingPriorityProxiesMap.get(itemID)
+
+        const taskInfo: TaskSchedulingInfo = {
+          itemID,
+          priorityProxy: isFirstTask && existingPriorityProxy !== undefined ?
+            existingPriorityProxy :
+            getQueuePriorityProxy(task.end, postOrderIndices.get(itemID) || 0),
+          remainingCost: Math.max(0, task.cost - (task.plannedProgress || 0)),
+        }
+
+        taskInfoList.push(taskInfo)
+
+        // Left endpoint
+        taskInfoEndpoints.push({
+          taskInfo,
+          dayID: task.start === undefined ? NEG_INF_DAY_ID : task.start,
+          isEnd: false,
+        })
+
+        // Right endpoint
+        taskInfoEndpoints.push({
+          taskInfo,
+          dayID: task.end === undefined ? INF_DAY_ID : task.end + 1,
+          isEnd: true,
+        })
+
+        isFirstTask = false
+      }
+    })
+
+    taskInfoEndpoints.sort((a, b) => {
+      return a.dayID - b.dayID
+    })
+
+    const strategy = new GreedyProjectionStrategy()
+
+    const result = strategy.generate(
+      currentDate, maxProjectionEndDate, taskInfoList, taskInfoEndpoints,
+      sessionSlots,
+    )
+
+    this.dayIDToProjections = result.sessions
+  }
+
+  private cacheParentChains() {
+    // TODO optimize with DFS, and try not to access done tasks?
+
+    const result = new Map<ItemID, ItemID[]>()
+    this.dataStore.state.items.forEach(item => {
+      if (!result.has(item.id)) {
+        result.set(item.id, this.dataStore.getAncestorsPlusSelf(item.id))
+      }
+    })
+
+    return result
+  }
+
+  private cacheSessionSlots(currentDate: DayID,
+                            maxProjectionEndDate: DayID) {
+    const result = this.dataStore.getQuota(currentDate, maxProjectionEndDate)
+
+    for (let d = currentDate; d <= maxProjectionEndDate; ++d) {
+      const dayData = this.dataStore.getDayData(d)
+      let quota = result.get(d) || 0
+      dayData.sessions.forEach(sessions => {
+        sessions.forEach(count => {
+          quota = Math.max(0, quota - count)
+        })
+      })
+      result.set(d, quota)
+    }
+
+    return result
   }
 }

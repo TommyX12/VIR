@@ -6,15 +6,6 @@
       {{getDate() | date:'fullDate'}}
     </p>
     <div class="hfill"></div>
-  </div>
-  <mat-divider></mat-divider>
-  <div class="toolbar">
-    <div class="hfill"></div>
-    <span class="quota-text" [innerHTML]="getQuotaHtml()">
-    </span>
-    <button mat-icon-button (click)="editQuota()" class="right-margin">
-      <mat-icon>edit</mat-icon>
-    </button>
     <button mat-icon-button (click)="onAddButtonClicked($event)"
             [matMenuTriggerFor]="addMenu">
       <mat-icon>add</mat-icon>
@@ -29,6 +20,16 @@
         Scheduled Session
       </button>
     </mat-menu>
+  </div>
+  <mat-divider></mat-divider>
+  <div class="toolbar">
+    <div class="hfill"></div>
+    <span class="quota-text" [innerHTML]="getQuotaHtml()">
+    </span>
+    <app-session-chip></app-session-chip>
+    <button mat-icon-button (click)="editQuota()">
+      <mat-icon>edit</mat-icon>
+    </button>
   </div>
   <mat-divider></mat-divider>
   <div class="progress-bar">
@@ -65,7 +66,6 @@
           <button mat-icon-button
                   matTooltip="Complete Item"
                   matTooltipPosition="above"
-                  *ngIf="session.done"
                   (click)="toggleItemDone(session) && $event.preventDefault()">
             <mat-icon class="checkbox" [class.checked]="session.itemDone">
               {{getCheckBoxIcon(session)}}
