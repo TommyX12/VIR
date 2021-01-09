@@ -105,7 +105,7 @@ export class GreedyProjectionStrategy extends ProjectionStrategy {
 
     const sessionOfDayCreator = () => new Map<ItemID, number>()
 
-    interface AuxillaryInfo {
+    interface AuxiliaryInfo {
       deleted: boolean,
 
       /**
@@ -114,11 +114,11 @@ export class GreedyProjectionStrategy extends ProjectionStrategy {
       count: number,
     }
 
-    const auxillaryInfoCreator = (): AuxillaryInfo => ({
+    const auxiliaryInfoCreator = (): AuxiliaryInfo => ({
       deleted: false,
       count: 0,
     })
-    const auxillaryInfoMap = new Map<TaskSchedulingInfo, AuxillaryInfo>()
+    const auxiliaryInfoMap = new Map<TaskSchedulingInfo, AuxiliaryInfo>()
 
     for (let d = firstDayID; d <= lastDayID; ++d) {
       // Process endpoints
@@ -130,7 +130,7 @@ export class GreedyProjectionStrategy extends ProjectionStrategy {
 
         if (endpoint.isEnd) {
           getOrCreate(
-            auxillaryInfoMap, endpoint.taskInfo, auxillaryInfoCreator).deleted =
+            auxiliaryInfoMap, endpoint.taskInfo, auxiliaryInfoCreator).deleted =
             true
         } else {
           q.queue(endpoint.taskInfo)
@@ -143,14 +143,14 @@ export class GreedyProjectionStrategy extends ProjectionStrategy {
       while (quota > 0) {
         while (
           q.length > 0 &&
-          getOrCreate(auxillaryInfoMap, q.peek(), auxillaryInfoCreator).deleted
+          getOrCreate(auxiliaryInfoMap, q.peek(), auxiliaryInfoCreator).deleted
           ) {
           q.dequeue()
         }
         if (q.length <= 0) break
         const info = q.peek()
         const auxInfo = getOrCreate(
-          auxillaryInfoMap, info, auxillaryInfoCreator)
+          auxiliaryInfoMap, info, auxiliaryInfoCreator)
         let count = Math.min(
           Math.max(info.remainingCost - auxInfo.count, 0), quota)
         if (count > 0) {
@@ -221,7 +221,7 @@ export class DataAnalyzer {
     this.itemIDToTasks.clear()
     this.dayIDToProjections.clear()
 
-    // Caching auxillary info
+    // Caching auxiliary info
 
     const currentDate = this.dataStore.getCurrentDayID()
     const maxProjectionEndDate = currentDate + this.maxProjectionRange
