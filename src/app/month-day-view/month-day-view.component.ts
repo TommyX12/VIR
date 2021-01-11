@@ -16,7 +16,7 @@ import {DayViewDialogComponent} from '../day-view-dialog/day-view-dialog.compone
 import {HomeComponent} from '../home/home.component'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
 import {QuickQuotaEditComponent} from '../quick-quota-edit/quick-quota-edit.component'
-import {DataAnalyzer} from '../data/data-analyzer'
+import {AnalyzerProjectionStrategy, DataAnalyzer} from '../data/data-analyzer'
 
 interface Session {
   scheduled: boolean
@@ -39,6 +39,7 @@ export class MonthDayViewComponent implements OnInit {
   @Input() todayDayID = dayIDNow()
   @Input() forceDisplayMonth = false
   @Input() quota?: number
+  @Input() useBackwardStrategy = false
   @Input() home?: HomeComponent
 
   @ViewChild('background') backgroundRef?: ElementRef
@@ -91,12 +92,16 @@ export class MonthDayViewComponent implements OnInit {
             itemDone: item.status === ItemStatus.COMPLETED,
           })
 
-          this.totalCount += count
+          if (type === SessionType.COMPLETED) {
+            this.totalCount += count
+          }
         }
       })
     })
 
-    const projections = this.dataAnalyzer.getProjections(this.dayID)
+    const projections = this.dataAnalyzer.getProjections(
+      this.useBackwardStrategy ? AnalyzerProjectionStrategy.BACKWARD :
+        AnalyzerProjectionStrategy.FORWARD, this.dayID)
     if (projections !== undefined) {
       projections.forEach((count, itemID) => {
         const item = this.dataStore.getItem(itemID)
@@ -111,8 +116,6 @@ export class MonthDayViewComponent implements OnInit {
             done: false,
             itemDone: item.status === ItemStatus.COMPLETED,
           })
-
-          this.totalCount += count
         }
       })
     }
@@ -330,11 +333,21 @@ export class MonthDayViewComponent implements OnInit {
   }
 
   getQuotaHtml() {
-    let result = `${this.totalCount}`
-    if (this.quota !== undefined) {
-      result += ` / <b>${this.quota}</b>`
+    if (this.dayID >= this.dataStore.getCurrentDayID() && this.quota !==
+      undefined) {
+      if (this.totalCount > 0) {
+        if (this.totalCount >= this.quota) {
+          return `<b>${this.totalCount} / ${this.quota}</b>`
+        }
+        return `<b>${this.totalCount}</b> / ${this.quota}`
+      }
+      return `${this.quota}`
+    } else {
+      if (this.totalCount > 0) {
+        return `<b>${this.totalCount}</b>`
+      }
+      return ''
     }
-    return result
   }
 
   get progress() {

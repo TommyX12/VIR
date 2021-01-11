@@ -111,6 +111,10 @@
   box-sizing: border-box;
 }
 
+.quota-text ::ng-deep b {
+  color: #27b727;
+}
+
 .header.is-today {
   background-color: #55bbea44;
 }

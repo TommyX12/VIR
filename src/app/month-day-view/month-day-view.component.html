@@ -11,7 +11,7 @@
         {{getDate() | date:getDateFormat()}}
       </p>
     </div>
-    <span class="quota-text" [innerHTML]="getQuotaHtml()"
+    <span class="quota-text app-single-line-text" [innerHTML]="getQuotaHtml()"
           (click)="editQuota()">
     </span>
     <mat-icon class="icon-button" inline (click)="onAddButtonClicked($event)"
@@ -19,14 +19,16 @@
       add
     </mat-icon>
     <mat-menu #addMenu="matMenu">
-      <button mat-menu-item (click)="addCompletedSession()">
-        <mat-icon>done</mat-icon>
-        Completed Session
-      </button>
-      <button mat-menu-item (click)="addScheduledSession()">
-        <mat-icon>schedule</mat-icon>
-        Scheduled Session
-      </button>
+      <ng-template matMenuContent>
+        <button mat-menu-item (click)="addCompletedSession()">
+          <mat-icon>done</mat-icon>
+          Completed Session
+        </button>
+        <button mat-menu-item (click)="addScheduledSession()">
+          <mat-icon>schedule</mat-icon>
+          Scheduled Session
+        </button>
+      </ng-template>
     </mat-menu>
   </div>
   <div class="progress-bar">

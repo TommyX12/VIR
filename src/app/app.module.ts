@@ -18,6 +18,9 @@ import {DetailModule} from './detail/detail.module'
 import {AppComponent} from './app.component'
 import {DataStore} from './data/data-store'
 import {DataAnalyzer} from './data/data-analyzer'
+import {MetadataStore} from './data/metadata-store'
+import {FsUtil} from './util/fs-util'
+import {Clock} from './data/clock'
 
 // AoT requires an exported function for factories
 export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
@@ -44,7 +47,7 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
       },
     }),
   ],
-  providers: [DataStore, DataAnalyzer],
+  providers: [MetadataStore, DataStore, DataAnalyzer, FsUtil, Clock],
   bootstrap: [AppComponent],
 })
 export class AppModule {

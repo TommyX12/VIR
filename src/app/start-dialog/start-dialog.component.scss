@@ -1,16 +1,22 @@
 .header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   height: 40px;
+  margin-bottom: 40px;
+}
+
+.fill-parent {
+  height: 100%;
+  width: 100%;
 }
 
 .footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   height: 40px;
-  margin-top: 10px;
+  margin-top: 50px;
 }
 
 .content {
@@ -33,12 +39,8 @@
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   vertical-align: middle;
-}
-
-.smaller-text {
-  font-size: 0.9em;
 }
 
 .color-picker {
@@ -89,25 +91,4 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.repeat-interval-input {
-  text-align: right;
-}
-
-.repeat-type-select {
-  width: 80px;
-}
-
-.repeat-interval-field {
-  min-width: 0;
-  width: 40px;
-}
-
-.help-icon {
-  margin-left: 5px;
-}
-
-.bottom-margin {
-  margin-bottom: 10px;
 }

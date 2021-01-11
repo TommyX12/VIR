@@ -12,15 +12,24 @@
   font-weight: bold;
 }
 
+.flex-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .toolbar {
   width: 100%;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding: 0 5px;
   box-sizing: border-box;
+}
+
+.warning {
+  color: #cb3838;
 }
 
 .dow-header {
@@ -83,6 +92,16 @@
 
 .calendar-column {
   height: 100%;
-  border: 1px solid #88888866;
+  border-right: 1px solid #88888866;
+  border-top: 1px solid #88888866;
 }
 
+.free-time-text ::ng-deep b {
+  color: #55bbea;
+}
+
+.free-time-label {
+  font-size: 0.9em;
+  opacity: 0.8;
+  margin-right: 15px;
+}

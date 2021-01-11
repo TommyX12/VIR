@@ -15,6 +15,7 @@ import {
   DayID,
   DEFAULT_QUOTA_RULE_APPLIER_BY_TYPE,
   DEFAULT_REPEATER_BY_TYPE,
+  deserializeQuotaRuleFromObject,
   draftToQuotaRule,
   isConstantQuotaRule,
   Item,
@@ -26,12 +27,37 @@ import {
   QuotaRuleID,
   quotaRuleToDraft,
   RepeatType,
+  serializeQuotaRuleToObject,
   SessionType,
 } from './common'
 import {Injectable} from '@angular/core'
 import {BehaviorSubject} from 'rxjs'
 import {dayIDNow} from '../util/time-util'
 import {Task} from './data-analyzer'
+import {MetadataStore} from './metadata-store'
+import {
+  deserializeMapFromObject,
+  deserializeNumberFromObject,
+  deserializeNumberFromString,
+  parseSerializedObject,
+  quickDeserializeRequired,
+  serializeArrayToObject,
+  SerializedObject,
+  SerializedObjectMap,
+  serializeMapToObject,
+  serializePrimitiveToObject,
+  serializePrimitiveToString,
+  stringifySerializedObject,
+} from '../util/serialization'
+import {FsUtil} from '../util/fs-util'
+import {debounceTime} from 'rxjs/operators'
+
+export const DATA_FILE_NAME = 'vir-data.json'
+export const TEMP_DATA_FILE_NAME_1 = 'vir-data.tmp1.json'
+export const TEMP_DATA_FILE_NAME_2 = 'vir-data.tmp2.json'
+
+export const AUTO_SAVE_IDLE_DELAY = 5000 // 5 seconds after change
+export const AUTO_SAVE_INTERVAL = 60000 // Every minute
 
 export interface InvalidItemError {
   type: string
@@ -353,12 +379,62 @@ export class DayMap<T> {
       partition.forEach(func)
     })
   }
+
+  static serializeToObject<T>(dayMap: DayMap<T>,
+                              valueToObject: (value: T) => SerializedObject): SerializedObject {
+    return {
+      partitions:
+        serializeMapToObject(
+          dayMap.partitions, serializePrimitiveToString,
+          (value) =>
+            serializeMapToObject(
+              value, serializePrimitiveToString, valueToObject),
+        ),
+    }
+  }
+
+  static deserializeFromObject<T>(obj: SerializedObject,
+                                  valueFromObject: (obj: SerializedObject) => T): DayMap<T> {
+    const map = obj as SerializedObjectMap
+    const result = new DayMap<T>()
+    result.partitions = deserializeMapFromObject(
+      map.partitions as SerializedObject, deserializeNumberFromString,
+      (value) =>
+        deserializeMapFromObject(
+          value, deserializeNumberFromString, valueFromObject),
+    )
+    return result
+  }
 }
 
 export class DayData {
   [immerable] = true
 
   sessions = new Map<SessionType, Map<ItemID, number>>()
+
+  static deserializeFromObject(obj: SerializedObject): DayData {
+    const map = obj as SerializedObjectMap
+    const result = new DayData()
+    result.sessions = deserializeMapFromObject(
+      map.sessions as SerializedObject, deserializeNumberFromString,
+      (value) =>
+        deserializeMapFromObject(
+          value, deserializeNumberFromString, deserializeNumberFromObject),
+    )
+    return result
+  }
+
+  static serializeToObject(value: DayData): SerializedObject {
+    return {
+      sessions:
+        serializeMapToObject(
+          value.sessions, serializePrimitiveToString,
+          (value) =>
+            serializeMapToObject(
+              value, serializePrimitiveToString, serializePrimitiveToObject),
+        ),
+    }
+  }
 }
 
 export interface DataStoreState {
@@ -373,6 +449,61 @@ export interface DataStoreState {
   settings: {
     startOfDayMinutes: number
     quotaRuleAutoDeleteDays: number
+  }
+}
+
+function serializeDataStoreStateToObject(state: DataStoreState): SerializedObject {
+  return {
+    items: serializeMapToObject(state.items, serializePrimitiveToString,
+      Item.serializeToObject,
+    ),
+    queue: serializeArrayToObject(state.queue, serializePrimitiveToObject),
+    rootItemIDs:
+      serializeArrayToObject(state.rootItemIDs, serializePrimitiveToObject),
+    timelineData:
+      DayMap.serializeToObject(state.timelineData, DayData.serializeToObject),
+    nextItemID: serializePrimitiveToObject(state.nextItemID),
+    nextQuotaRuleID: serializePrimitiveToObject(state.nextQuotaRuleID),
+    quotaRules:
+      serializeMapToObject(state.quotaRules, serializePrimitiveToString,
+        serializeQuotaRuleToObject,
+      ),
+    quotaRuleOrder:
+      serializeArrayToObject(state.quotaRuleOrder, serializePrimitiveToObject),
+    settings: {
+      startOfDayMinutes: serializePrimitiveToObject(
+        state.settings.startOfDayMinutes),
+      quotaRuleAutoDeleteDays: serializePrimitiveToObject(
+        state.settings.quotaRuleAutoDeleteDays),
+    },
+  }
+}
+
+function deserializeDataStoreStateFromObject(obj: SerializedObject): DataStoreState {
+  const map = obj as SerializedObjectMap
+  const settings = map.settings as SerializedObjectMap
+  return {
+    items: map.items === undefined ? new Map<ItemID, Item>() :
+      deserializeMapFromObject(map.items, deserializeNumberFromString,
+        Item.deserializeFromObject,
+      ),
+    queue: quickDeserializeRequired(map.queue),
+    rootItemIDs: quickDeserializeRequired(map.rootItemIDs),
+    timelineData: DayMap.deserializeFromObject(
+      map.timelineData as SerializedObject, DayData.deserializeFromObject),
+    nextItemID: quickDeserializeRequired(map.nextItemID),
+    nextQuotaRuleID: quickDeserializeRequired(map.nextQuotaRuleID),
+    quotaRules: map.quotaRules === undefined ?
+      new Map<QuotaRuleID, QuotaRule>() :
+      deserializeMapFromObject(map.quotaRules, deserializeNumberFromString,
+        deserializeQuotaRuleFromObject,
+      ),
+    quotaRuleOrder: quickDeserializeRequired(map.quotaRuleOrder),
+    settings: {
+      startOfDayMinutes: quickDeserializeRequired(settings.startOfDayMinutes),
+      quotaRuleAutoDeleteDays: quickDeserializeRequired(
+        settings.quotaRuleAutoDeleteDays),
+    },
   }
 }
 
@@ -593,8 +724,10 @@ export class DataStore {
   static readonly defaultDayData = new DayData()
 
   private onChangeSubject = new BehaviorSubject<DataStore>(this)
+  private onReloadSubject = new BehaviorSubject<DataStore>(this)
 
   onChange = this.onChangeSubject.asObservable()
+  onReload = this.onReloadSubject.asObservable()
 
   private addItemReducer = (draft: Draft<DataStoreState>,
                             itemDraft: ItemDraft) => {
@@ -919,8 +1052,13 @@ export class DataStore {
         if (child === undefined) continue
         childrenCost += child.effectiveCost
       }
-      item.effectiveCost = Math.max(childrenCost, item.cost)
-      item.residualCost = item.effectiveCost - childrenCost
+      if (numChildren === 0) {
+        item.effectiveCost = Math.max(childrenCost, item.cost)
+        item.residualCost = item.effectiveCost - childrenCost
+      } else { // When there's children, assume self cost is 0
+        item.effectiveCost = childrenCost
+        item.residualCost = 0
+      }
 
       lastUpdatedItemID = itemID
       itemID = item.parentID
@@ -998,9 +1136,13 @@ export class DataStore {
   private _freezeNotifyAndUndo = 0
 
   maxUndoHistory = 50
+  private autoSaveStarted = false
+  lastSavedMs = new BehaviorSubject(new Date())
 
-  constructor() {
+  constructor(private readonly metadataStore: MetadataStore,
+              private readonly fsUtil: FsUtil) {
     // TODO remove this
+    /*
     this.batchEdit(() => {
       let draft = new ItemDraft(-1, 'Hello')
       draft.color =
@@ -1034,13 +1176,13 @@ export class DataStore {
         Color.rgb(Math.random() * 255, Math.random() * 255, Math.random() * 255)
       draft.parentID = 1
       this.addItem(draft)
-      for (let i = 0; i < 200; ++i) {
-        let draft = new ItemDraft(-1, 'Hello' + i.toString())
-        draft.color =
-          Color.rgb(
-            Math.random() * 255, Math.random() * 255, Math.random() * 255)
-        this.addItem(draft)
-      }
+      // for (let i = 0; i < 200; ++i) {
+      //   let draft = new ItemDraft(-1, 'Hello' + i.toString())
+      //   draft.color =
+      //     Color.rgb(
+      //       Math.random() * 255, Math.random() * 255, Math.random() * 255)
+      //   this.addItem(draft)
+      // }
 
       // this.addSession(dayIDNow(), SessionType.COMPLETED, 1, 3)
       // this.addSession(dayIDNow(), SessionType.PROJECTED, 2, 4)
@@ -1068,6 +1210,30 @@ export class DataStore {
       } as ConstantQuotaRule)
     })
     this.clearUndo()
+    */
+  }
+
+  startAutoSave() {
+    if (this.autoSaveStarted) return
+    this.autoSaveStarted = true
+
+    // Idle save
+    this.onChange.pipe(debounceTime(AUTO_SAVE_IDLE_DELAY)).subscribe(() => {
+      this.save()
+    })
+
+    // Interval save
+    setInterval(() => {
+      const now = Date.now()
+      if (now - this.lastSavedMs.value.getTime() >= AUTO_SAVE_INTERVAL - 5000) {
+        this.save()
+      }
+    }, AUTO_SAVE_INTERVAL)
+
+    // Save on quit
+    window.addEventListener('beforeunload', () => {
+      this.save()
+    })
   }
 
   public get state() {
@@ -1226,10 +1392,7 @@ export class DataStore {
     this._state =
       produce(this._state, draft => {
         this.removeItemReducer(draft, itemID)
-      })
-    this._state =
-      produce(this._state, draft => {
-        this.removeItemFromQueueReducer(draft, itemID)
+        // This will automatically remove things from queue as well
       })
     this.notify()
   }
@@ -1535,6 +1698,7 @@ export class DataStore {
         })
       })
     })
+    removeValue(draft.queue, itemID)
   }
 
   getItemColor(item: Item): Color {
@@ -1543,6 +1707,38 @@ export class DataStore {
     while (i !== undefined && i.tryUseParentColor && i.parentID !== undefined) {
       i = this.getItem(i.parentID)
       if (i !== undefined) result = i.color
+    }
+    return result
+  }
+
+  getRelativeEffectiveDateRange(item: Item, ancestorID: ItemID): {
+    deferDate?: DayID,
+    dueDate?: DayID,
+  } {
+    if (item.id === ancestorID) return {}
+
+    let i: Item | undefined = item
+    let result = {
+      dueDate: i.dueDate,
+      deferDate: i.deferDate,
+    }
+    while (i.parentID !== undefined) {
+      i = this.getItem(i.parentID)
+      if (i === undefined) break
+      if (i.id === ancestorID) break
+
+      if (result.deferDate === undefined) {
+        result.deferDate = i.deferDate
+      } else {
+        result.deferDate =
+          optionalClamp(result.deferDate, i.deferDate, i.dueDate)
+      }
+
+      if (result.dueDate === undefined) {
+        result.dueDate = i.dueDate
+      } else {
+        result.dueDate = optionalClamp(result.dueDate, i.deferDate, i.dueDate)
+      }
     }
     return result
   }
@@ -1927,5 +2123,39 @@ export class DataStore {
     }
 
     return result
+  }
+
+  getSaveFilePath() {
+    return this.fsUtil.path.join(
+      this.metadataStore.dataDir, DATA_FILE_NAME)
+  }
+
+  save() {
+    this.lastSavedMs.next(new Date())
+    const filePath = this.getSaveFilePath()
+    const serializedObject = serializeDataStoreStateToObject(this.state)
+    const text = stringifySerializedObject(serializedObject)
+    this.fsUtil.safeWriteFileSync(
+      filePath, text, TEMP_DATA_FILE_NAME_1, TEMP_DATA_FILE_NAME_2)
+  }
+
+  /**
+   * Return if load successful
+   */
+  load() {
+    const filePath = this.getSaveFilePath()
+    try {
+      const text = this.fsUtil.readFileTextSync(filePath)
+      if (text === undefined) return false
+      const serializedObject = parseSerializedObject(text)
+      this._state = deserializeDataStoreStateFromObject(serializedObject)
+      this.clearUndo()
+      this.onReloadSubject.next(this)
+      this.notify()
+    } catch (e) {
+      console.log(e)
+      return false
+    }
+    return true
   }
 }

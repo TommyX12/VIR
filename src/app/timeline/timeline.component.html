@@ -1,6 +1,5 @@
 <div class="container">
   <div class="toolbar">
-    <div class="hfill"></div>
     <button class="right-margin" mat-stroked-button (click)="gotoTodayWeek()">
       Today
     </button>
@@ -30,6 +29,27 @@
       <mat-button-toggle value="month">Month</mat-button-toggle>
       <mat-button-toggle value="week">Week</mat-button-toggle>
     </mat-button-toggle-group>
+    <div class="hfill"></div>
+    <button mat-stroked-button (click)="newItem()" color="accent">
+      <mat-icon>add</mat-icon>
+      New Item
+    </button>
+  </div>
+  <mat-divider class="divider"></mat-divider>
+  <div class="toolbar">
+    <p class="free-time-label">Max free time in 30 days:</p>
+    <p class="free-time-text app-single-line-text"
+       [class.warning]="freeTimeDepleted"
+       [innerHTML]="getFreeTimeHtml()"></p>
+    <app-session-chip></app-session-chip>
+    <div class="hfill"></div>
+    <mat-slide-toggle color="warn" [(ngModel)]="useBackwardStrategy"
+                      matTooltip="View Late Strategy"
+                      matTooltipPosition="above">
+      <div class="flex-row">
+        <mat-icon>hourglass_empty</mat-icon>
+      </div>
+    </mat-slide-toggle>
   </div>
   <mat-divider class="divider"></mat-divider>
   <div class="dow-header">
@@ -53,6 +73,7 @@
         <app-month-day-view
           #monthDayView
           [home]="home"
+          [useBackwardStrategy]="useBackwardStrategy"
           [quota]="getQuota(row, column)"
           [dayID]="getDayIDOfCell(row, column)"
           [todayDayID]="todayDayID"

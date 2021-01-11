@@ -85,9 +85,9 @@
             <button *ngIf="!node.expandable" mat-icon-button disabled>
               <mat-icon></mat-icon>
             </button>
+            <!-- tooltip may cause bug-->
             <button mat-icon-button
-                    matTooltip="Delete"
-                    matTooltipPosition="above"
+                    color="warn"
                     (click)="removeItem(node)">
               <mat-icon>close</mat-icon>
             </button>

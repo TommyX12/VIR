@@ -9,14 +9,15 @@
   <div class="inner-content">
     <div class="body">
       <mat-icon class="large-right-margin" color="primary">timelapse</mat-icon>
-      <span class="value large-right-margin">
+      <span class="value">
         <span>
           {{node.value}}
         </span>
-        <app-session-chip></app-session-chip>
       </span>
-      <span class="description app-single-line-text right-margin"
-            [innerHTML]="node.displayHtml">
+      <app-session-chip></app-session-chip>
+      <span
+        class="description app-single-line-text large-left-margin right-margin"
+        [innerHTML]="node.displayHtml">
       </span>
     </div>
     <div class="right-margin"></div>

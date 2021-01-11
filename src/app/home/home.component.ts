@@ -1,7 +1,9 @@
 import {
   AfterViewInit,
+  ChangeDetectorRef,
   Component,
   HostBinding,
+  OnDestroy,
   OnInit,
   ViewChild,
 } from '@angular/core'
@@ -11,12 +13,22 @@ import {DataStore} from '../data/data-store'
 import {ItemsComponent} from '../items/items.component'
 import {MatTabChangeEvent} from '@angular/material/tabs'
 import {TimelineComponent} from '../timeline/timeline.component'
-import {dateToDayID, dayIDNow, dayIDToDate} from '../util/time-util'
+import {dateToDayID, dayIDToDate} from '../util/time-util'
 import {MatDatepickerInputEvent} from '@angular/material/datepicker'
-import {ItemID} from '../data/common'
+import {DayID, ItemID} from '../data/common'
 import {MatDialog} from '@angular/material/dialog'
 import {QueueComponent} from '../queue/queue.component'
 import {QuotaListComponent} from '../quota-list/quota-list.component'
+import {ElectronService} from '../core/services'
+import {FsUtil} from '../util/fs-util'
+import {SettingsDialogComponent} from '../settings-dialog/settings-dialog.component'
+import {StartDialogComponent} from '../start-dialog/start-dialog.component'
+import {MatSnackBar} from '@angular/material/snack-bar'
+import {Clock} from '../data/clock'
+import {AlertListComponent} from '../alert-list/alert-list.component'
+import {DataAnalyzer} from '../data/data-analyzer'
+import {Subscription} from 'rxjs'
+import {Counter} from '../util/util'
 
 const THEME_DARKNESS_SUFFIX = `-dark`
 const DEFAULT_THEME_NAME = 'main'
@@ -31,7 +43,7 @@ interface TabData {
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
 })
-export class HomeComponent implements OnInit, AfterViewInit {
+export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   // @ts-ignore
   @HostBinding('class') activeThemeCssClass: string
 
@@ -39,6 +51,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
   @ViewChild('itemsTab') itemsTab?: ItemsComponent
   @ViewChild('queueTab') queueTab?: QueueComponent
   @ViewChild('quotaListTab') quotaListTab?: QuotaListComponent
+  @ViewChild('alertListTab') alertListTab?: AlertListComponent
 
   // TODO: This must match the actual tabs in the template.
   //  Make this less error prone.
@@ -55,6 +68,9 @@ export class HomeComponent implements OnInit, AfterViewInit {
     {
       getComponent: () => this.quotaListTab,
     },
+    {
+      getComponent: () => this.alertListTab,
+    },
   ]
 
   isThemeDark = false
@@ -64,15 +80,34 @@ export class HomeComponent implements OnInit, AfterViewInit {
   public selectedTabIndex = 0
   public activatedTabIndex = -1
 
-  sideBarDayID = dayIDNow()
+  alertsCount = new Counter<string>()
+
+  sideBarDayID: DayID
 
   home = this
+
+  private dataAnalyzerChangeSubscription?: Subscription
+
+  private onAnalyzerChanged = (dataAnalyzer: DataAnalyzer) => {
+    this.alertsCount.clear()
+    dataAnalyzer.getAlerts().forEach(alert => {
+      this.alertsCount.add(alert.color, 1)
+    })
+    this.refresh()
+  }
 
   constructor(private router: Router,
               private overlayContainer: OverlayContainer,
               private dialog: MatDialog,
-              public readonly dataStore: DataStore) {
+              private readonly fsUtil: FsUtil,
+              private readonly electronService: ElectronService,
+              public readonly dataStore: DataStore,
+              public readonly dataAnalyzer: DataAnalyzer,
+              public readonly clock: Clock,
+              private readonly snackBar: MatSnackBar,
+              private readonly changeDetectorRef: ChangeDetectorRef) {
     this.setActiveTheme(this.activeTheme, this.enableDarkMode)
+    this.sideBarDayID = dataStore.getCurrentDayID()
   }
 
   public get enableDarkMode() {
@@ -99,12 +134,41 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.activeThemeCssClass = cssClass
   }
 
-  ngOnInit(): void {
+  ngOnInit() {
+    this.subscribeToData()
+  }
+
+  ngOnDestroy() {
+    this.unsubscribeFromData()
+  }
+
+  subscribeToData() {
+    if (this.dataAnalyzerChangeSubscription === undefined) {
+      this.dataAnalyzerChangeSubscription =
+        this.dataAnalyzer.onChange.subscribe(this.onAnalyzerChanged)
+    }
+  }
+
+  unsubscribeFromData() {
+    this.dataAnalyzerChangeSubscription?.unsubscribe()
+    this.dataAnalyzerChangeSubscription = undefined
+  }
+
+  refresh() {
+    this.changeDetectorRef.detectChanges()
   }
 
   ngAfterViewInit() {
     setTimeout(() => {
       this.onSelectedIndexChange(this.selectedTabIndex)
+    })
+
+    const dialogRef = this.dialog.open(StartDialogComponent, {
+      width: StartDialogComponent.DIALOG_WIDTH,
+      data: {},
+      hasBackdrop: true,
+      disableClose: true,
+      autoFocus: false,
     })
   }
 
@@ -155,7 +219,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
   }
 
   sideBarGoToToday() {
-    this.sideBarDayID = dayIDNow()
+    this.sideBarDayID = this.dataStore.getCurrentDayID()
   }
 
   showInItems(itemID: ItemID) {
@@ -189,6 +253,23 @@ export class HomeComponent implements OnInit, AfterViewInit {
       setTimeout(() => {
         this.queueTab?.locateNodeByID(itemID)
       })
+    })
+  }
+
+  openSettings() {
+    const dialogRef = this.dialog.open(SettingsDialogComponent, {
+      width: SettingsDialogComponent.DIALOG_WIDTH,
+      data: {},
+      hasBackdrop: true,
+      disableClose: false,
+      autoFocus: false,
+    })
+  }
+
+  saveData() {
+    this.dataStore.save()
+    this.snackBar.open('Data saved.', 'OK', {
+      duration: 3000,
     })
   }
 }

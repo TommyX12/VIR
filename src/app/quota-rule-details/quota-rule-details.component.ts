@@ -286,7 +286,7 @@ export class QuotaRuleDetailsComponent implements OnInit, AfterViewInit {
   }
 
   onDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
-    let dayID = parseMatDatePicker(event)
+    let dayID = parseMatDatePicker(event, this.dataStore.getCurrentDayID())
     if (dayID === undefined) {
       this.clearDate()
     } else {
@@ -295,7 +295,7 @@ export class QuotaRuleDetailsComponent implements OnInit, AfterViewInit {
   }
 
   onEndDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
-    let dayID = parseMatDatePicker(event)
+    let dayID = parseMatDatePicker(event, this.dataStore.getCurrentDayID())
     if (dayID === undefined) {
       this.endDate = null
     } else {

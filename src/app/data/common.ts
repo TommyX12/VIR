@@ -11,13 +11,19 @@ import {
 } from '../util/time-util'
 import {Task} from './data-analyzer'
 import {arrayToMap} from '../util/util'
+import {
+  quickDeserialize,
+  quickDeserializeRequired,
+  SerializedObject,
+  SerializedObjectMap,
+} from '../util/serialization'
 
 export type ItemID = number
 
 export type DayID = number
 
-export const NEG_INF_DAY_ID = -1000000000
-export const INF_DAY_ID = 1000000000
+export const NEG_INF_DAY_ID = -100000000
+export const INF_DAY_ID = 100000000
 
 export class DisplayDate {
   /**
@@ -49,9 +55,19 @@ export enum SessionType {
 /**
  * NOTE: All repeat types must be interface extending this interface, and be
  * deep-copyable.
+ * Also, each repeat type should be plain objects that are directly
+ * SerializedObjects.
  */
 export interface RepeatType {
   readonly type: string
+}
+
+export function serializeRepeatTypeToObject(value: RepeatType) {
+  return value as unknown as SerializedObject
+}
+
+export function deserializeRepeatTypeFromObject(obj: SerializedObject) {
+  return obj as unknown as RepeatType
 }
 
 export class RepeatTypeFactory<T extends RepeatType> {
@@ -161,6 +177,54 @@ export class Item {
       this.repeatEndDate,
       this.repeatOnCompletion,
     )
+  }
+
+  static serializeToObject(value: Item): SerializedObject {
+    return {
+      effectiveCost: value.effectiveCost,
+      residualCost: value.residualCost,
+      id: value.id,
+      name: value.name,
+      status: value.status,
+      cost: value.cost,
+      autoAdjustPriority: value.autoAdjustPriority,
+      childrenIDs: value.childrenIDs,
+      tryUseParentColor: value.tryUseParentColor,
+      color: value.color.hex(),
+      parentID: value.parentID,
+      deferDate: value.deferDate,
+      dueDate: value.dueDate,
+      repeat: value.repeat === undefined ? undefined :
+        serializeRepeatTypeToObject(value.repeat),
+      repeatInterval: value.repeatInterval,
+      repeatEndDate: value.repeatEndDate,
+      repeatOnCompletion: value.repeatOnCompletion,
+    }
+  }
+
+  static deserializeFromObject(obj: SerializedObject): Item {
+    const map = obj as SerializedObjectMap
+    const result = new Item(
+      quickDeserializeRequired(map.id),
+      quickDeserializeRequired(map.name),
+      quickDeserializeRequired(map.status),
+      quickDeserializeRequired(map.cost),
+      quickDeserializeRequired(map.autoAdjustPriority),
+      quickDeserializeRequired(map.childrenIDs),
+      quickDeserializeRequired(map.tryUseParentColor),
+      Color(map.color as string),
+      quickDeserialize(map.parentID, undefined),
+      quickDeserialize(map.deferDate, undefined),
+      quickDeserialize(map.dueDate, undefined),
+      map.repeat === undefined ? undefined :
+        deserializeRepeatTypeFromObject(map.repeat),
+      quickDeserializeRequired(map.repeatInterval),
+      quickDeserialize(map.repeatEndDate, undefined),
+      quickDeserializeRequired(map.repeatOnCompletion),
+    )
+    result.effectiveCost = quickDeserializeRequired(map.effectiveCost)
+    result.residualCost = quickDeserializeRequired(map.residualCost)
+    return result
   }
 }
 
@@ -445,12 +509,21 @@ export type QuotaRuleID = number
 /**
  * NOTE: All quota rules must be interface extending this interface, and be
  * deep-copyable.
+ * Also, they should be serialized objects just by themselves.
  */
 export interface QuotaRule {
   readonly type: string
   id: QuotaRuleID
   firstDate?: DayID
   lastDate?: DayID
+}
+
+export function serializeQuotaRuleToObject(quotaRule: QuotaRule): SerializedObject {
+  return quotaRule as unknown as SerializedObject
+}
+
+export function deserializeQuotaRuleFromObject(obj: SerializedObject): QuotaRule {
+  return obj as unknown as QuotaRule
 }
 
 export interface ConstantQuotaRule extends QuotaRule {

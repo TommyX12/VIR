@@ -1,3 +1,9 @@
+import * as stringify from 'json-stable-stringify'
+
+export function isObject(value: any) {
+  return typeof value === 'object' && value !== null
+}
+
 export function removeValue<T>(array: T[], value: T) {
   const index = array.indexOf(value)
   if (index > -1) {
@@ -35,6 +41,10 @@ export function arrayShallowEquals(a: any[], b: any[]) {
 
 export function random(min: number, max: number) {
   return min + Math.random() * (max - min)
+}
+
+export function withDefault<T>(value: T | undefined, defaultValue: T): T {
+  return value === undefined ? defaultValue : value
 }
 
 export function optionalClamp(value: number, low?: number, high?: number) {
@@ -86,6 +96,17 @@ export class Counter<K> {
 
   get(key: K) {
     return this.data.get(key) || 0
+  }
+
+  clear() {
+    this.data = new Map<K, number>()
+  }
+
+  copyFrom(other: Counter<K>) {
+    this.data.clear()
+    other.data.forEach((count, key) => {
+      this.data.set(key, count)
+    })
   }
 }
 
@@ -290,4 +311,8 @@ export class PriorityQueue<T> {
     this._length = 0
     this.strategy.clear()
   }
+}
+
+export function stableStringify(obj: any, options: any = {space: 2}): string {
+  return stringify(obj, options)
 }

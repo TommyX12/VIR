@@ -1,4 +1,6 @@
 <div class="header">
+  <b>Item</b>
+  <div class="hfill"></div>
   <button mat-icon-button (click)="close()">
     <mat-icon>close</mat-icon>
   </button>
@@ -19,6 +21,10 @@
         <mat-label>Cost (Estimated sessions needed)</mat-label>
         <input matInput name="cost" [(ngModel)]="cost"/>
       </mat-form-field>
+    </div>
+    <div class="full-width-field smaller-text" *ngIf="shouldShowCostWarning">
+      <mat-icon color="primary" class="right-margin">warning</mat-icon>
+      Cost is determined by children
     </div>
     <div class="full-width flex-row">
       <mat-form-field class="flex-child">

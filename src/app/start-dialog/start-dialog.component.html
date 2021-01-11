@@ -1,0 +1,23 @@
+<div class="header">
+  <h3>Welcome</h3>
+</div>
+<div class="content">
+  <form class="form">
+    <div class="full-width-field">
+      <mat-label class="right-margin">Data Path</mat-label>
+      <mat-form-field class="flex-child right-margin">
+        <input #dataDirInput matInput name="dataDir"
+               [(ngModel)]="metadataStore.dataDir"
+               disabled/>
+      </mat-form-field>
+      <button mat-stroked-button type="button" (click)="changeDataDir()">
+        Change
+      </button>
+    </div>
+  </form>
+</div>
+<div class="footer">
+  <button mat-raised-button color="primary" (click)="start()">
+    Start
+  </button>
+</div>

@@ -1,8 +1,22 @@
 <div class="container mat-app-background">
   <mat-toolbar>
     <div class="header-content">
-      <mat-icon class="vir-icon">camera</mat-icon>
+      <mat-icon color="accent" class="vir-icon">camera</mat-icon>
       <span class="title">VIR</span>
+      <mat-divider vertical class="vertical-divider"></mat-divider>
+      <span class="clock-time app-single-line-text">
+        {{clock.value | async | date:'shortTime'}}
+      </span>
+      <mat-divider vertical class="vertical-divider"></mat-divider>
+      <span class="clock-date app-single-line-text">
+        {{clock.value | async | date:'mediumDate'}}
+      </span>
+      <div class="hfill"></div>
+      <!--<span class="title">VIR</span>-->
+      <span class="last-saved-time app-single-line-text">
+        Last saved: {{dataStore.lastSavedMs | async | date:'shortTime'}}
+      </span>
+      <mat-divider vertical class="vertical-divider"></mat-divider>
       <button mat-icon-button (click)="dataStore.undo()"
               matTooltip="Undo"
               [disabled]="!dataStore.canUndo()">
@@ -14,9 +28,16 @@
         <mat-icon>redo</mat-icon>
       </button>
       <div class="small-space"></div>
-      <mat-slide-toggle [(ngModel)]="enableDarkMode">
+      <mat-slide-toggle [(ngModel)]="enableDarkMode" class="right-margin">
         <mat-icon class="dark-mode-icon">brightness_4</mat-icon>
       </mat-slide-toggle>
+      <mat-divider vertical class="vertical-divider"></mat-divider>
+      <button mat-icon-button (click)="saveData()">
+        <mat-icon>save</mat-icon>
+      </button>
+      <button mat-icon-button (click)="openSettings()">
+        <mat-icon>settings</mat-icon>
+      </button>
     </div>
   </mat-toolbar>
   <mat-sidenav-container class="content-container">
@@ -97,6 +118,28 @@
           </ng-template>
           <app-quota-list #quotaListTab>
           </app-quota-list>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="tab-label">
+              <mat-icon class="tab-label-icon">error_outline</mat-icon>
+              Alerts
+              <span class="alert-count-chip primary-alert-count"
+                    *ngIf="alertsCount.get('primary')">
+                {{alertsCount.get('primary')}}
+              </span>
+              <span class="alert-count-chip accent-alert-count"
+                    *ngIf="alertsCount.get('accent')">
+                {{alertsCount.get('accent')}}
+              </span>
+              <span class="alert-count-chip warn-alert-count"
+                    *ngIf="alertsCount.get('warn')">
+                {{alertsCount.get('warn')}}
+              </span>
+            </span>
+          </ng-template>
+          <app-alert-list #alertListTab>
+          </app-alert-list>
         </mat-tab>
       </mat-tab-group>
     </mat-sidenav-content>

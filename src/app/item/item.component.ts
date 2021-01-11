@@ -13,6 +13,7 @@ import {DataStore} from '../data/data-store'
 import {ItemID, ItemStatus} from '../data/common'
 import {dayIDToDate} from '../util/time-util'
 import {MatSnackBar} from '@angular/material/snack-bar'
+import {TaskProblemType} from '../data/data-analyzer'
 
 const DROP_THRESHOLDS_WITH_CHILD_DROP = [0.4, 0.666]
 
@@ -48,6 +49,8 @@ export class ItemComponent implements OnInit {
 
   @Output() bodyClicked = new EventEmitter()
   @Output() itemDropped = new EventEmitter<ItemDroppedEvent>()
+
+  problemType = TaskProblemType
 
   constructor(
     private readonly dataStore: DataStore,
@@ -153,6 +156,22 @@ export class ItemComponent implements OnInit {
     }
   }
 
+  get overdue() {
+    return this.node.effectiveDueDate ?
+      (this.node.effectiveDueDate < this.dataStore.getCurrentDayID()) : false
+  }
+
+  get etaWarningLevel() {
+    if (this.node.estimatedDoneDate === undefined ||
+      this.node.effectiveDueDate === undefined) {
+      return 0
+    }
+    const delta = this.node.effectiveDueDate - this.node.estimatedDoneDate
+    if (delta <= 2) return 2
+    if (delta <= 7) return 1
+    return 0
+  }
+
   getEffectiveDeferDate() {
     return this.node.effectiveDeferDate ?
       dayIDToDate(this.node.effectiveDeferDate) : undefined
@@ -164,9 +183,29 @@ export class ItemComponent implements OnInit {
   }
 
   getCostHtml() {
-    if (this.node.progress !== undefined) {
-      return `${this.node.progress} / ${this.node.plannedProgress} / ${this.node.effectiveCost}`
+    if (this.node.effectiveProgress > 0) {
+      if (this.node.effectiveProgress >= this.node.effectiveCost) {
+        return `<b>${this.node.effectiveProgress} / ${this.node.effectiveCost}</b>`
+      }
+      return `<b>${this.node.effectiveProgress}</b> / ${this.node.effectiveCost}`
     }
     return `${this.node.effectiveCost}`
+  }
+
+  getEstimatedDoneDate() {
+    return this.node.estimatedDoneDate ?
+      dayIDToDate(this.node.estimatedDoneDate) : undefined
+  }
+
+  getEstimatedDoneDateDeltaText() {
+    let value = this.node.estimatedDoneDate ?
+      this.node.estimatedDoneDate - this.dataStore.getCurrentDayID() : 0
+    return value >= 0 ? `+${value}` : `${value}`
+  }
+
+  getEffectiveDueDateDeltaText() {
+    let value = this.node.effectiveDueDate ?
+      this.node.effectiveDueDate - this.dataStore.getCurrentDayID() : 0
+    return value >= 0 ? `+${value}` : `${value}`
   }
 }

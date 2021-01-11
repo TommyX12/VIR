@@ -96,9 +96,10 @@ export function parseSpecialDate(text: string,
   return undefined
 }
 
-export function parseMatDatePicker(event: MatDatepickerInputEvent<unknown, unknown>): DayID | undefined {
+export function parseMatDatePicker(event: MatDatepickerInputEvent<unknown, unknown>,
+                                   currentDayID: DayID): DayID | undefined {
   let dayID = parseSpecialDate(
-    (event.targetElement as any).value || '', dayIDNow())
+    (event.targetElement as any).value || '', currentDayID)
   if (dayID === undefined) {
     const date = event.value
     if (date) {
@@ -128,6 +129,12 @@ export function getShowrtDOWDisplayName(dow: number) {
 export function getLongDateDisplayName(date: Date) {
   return date.toLocaleDateString(undefined, {
     year: 'numeric', month: 'long', day: 'numeric',
+  })
+}
+
+export function getShortDateDisplayName(date: Date) {
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric', month: 'numeric', day: 'numeric',
   })
 }
 

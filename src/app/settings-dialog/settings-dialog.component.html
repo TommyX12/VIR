@@ -1,0 +1,30 @@
+<div class="header">
+  <b>Settings</b>
+  <div class="hfill"></div>
+  <button mat-icon-button (click)="close()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+<div class="content">
+  <form class="form">
+    <div class="full-width-field">
+      <mat-label class="right-margin">Data Path</mat-label>
+      <mat-form-field class="flex-child right-margin">
+        <input #dataDirInput matInput name="dataDir" [(ngModel)]="dataDir"
+               disabled/>
+      </mat-form-field>
+      <button mat-stroked-button type="button" (click)="changeDataDir()">
+        Change
+      </button>
+    </div>
+  </form>
+</div>
+<div class="footer">
+  <button mat-stroked-button (click)="reloadData()" color="warn">
+    Reload Data
+  </button>
+  <div class="hfill"></div>
+  <button mat-raised-button (click)="save()" color="primary">
+    Save
+  </button>
+</div>

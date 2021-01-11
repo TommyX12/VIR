@@ -22,11 +22,13 @@ import {
   ItemDroppedEvent,
   ItemDroppedInsertionType,
 } from '../item/item.component'
-import {DataAnalyzer} from '../data/data-analyzer'
+import {DataAnalyzer, TaskProblemType} from '../data/data-analyzer'
 
 const SEARCH_IDLE_DELAY = 200
 
 export interface ItemNode {
+  problem?: TaskProblemType
+  estimatedDoneDate?: DayID
   effectiveDeferDate?: DayID
   effectiveDueDate?: DayID
   expandable: boolean
@@ -39,8 +41,7 @@ export interface ItemNode {
   isIndirect: boolean
   color: Color
   canRepeat: boolean
-  progress?: number
-  plannedProgress?: number
+  effectiveProgress: number
 }
 
 class ItemFilter {
@@ -109,9 +110,13 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     }
     const tasks = this.dataAnalyzer.getTasks(item.id)
+    const problems = this.dataAnalyzer.getTaskProblems(item.id)
     const firstTask = tasks === undefined ? undefined : tasks[0]
     const effectiveInfo = this.dataStore.getEffectiveInfo(item)
     return {
+      problem: (problems !== undefined && problems.length > 0 &&
+        problems[0].task === firstTask) ? problems[0].type : undefined,
+      estimatedDoneDate: this.dataAnalyzer.getEstimatedDoneDate(item.id),
       effectiveDeferDate: effectiveInfo.deferDate,
       effectiveDueDate: effectiveInfo.dueDate,
       expandable: hasAllowedChild,
@@ -124,8 +129,7 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
       isIndirect: this.indirectAllowedItemIDs.has(item.id),
       color: this.dataStore.getItemColor(item),
       canRepeat: item.repeat !== undefined && !effectiveInfo.hasAncestorRepeat,
-      progress: firstTask?.progress,
-      plannedProgress: firstTask?.plannedProgress,
+      effectiveProgress: this.dataAnalyzer.getEffectiveProgress(item.id) || 0,
     }
   }
 
@@ -257,7 +261,6 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
     const dialogRef = this.dialog.open(ItemDetailsComponent, {
       width: ItemDetailsComponent.DIALOG_WIDTH,
       data: {
-        initialColor: this.dataStore.generateColor(),
         initialParent: parentID,
       },
       hasBackdrop: true,

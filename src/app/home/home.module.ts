@@ -22,6 +22,10 @@ import {MatDatepickerModule} from '@angular/material/datepicker'
 import {MatInputModule} from '@angular/material/input'
 import {QueueModule} from '../queue/queue.module'
 import {QuotaListModule} from '../quota-list/quota-list.module'
+import {MatDividerModule} from '@angular/material/divider'
+import {SettingsDialogModule} from '../settings-dialog/settings-dialog.module'
+import {StartDialogModule} from '../start-dialog/start-dialog.module'
+import {AlertListModule} from '../alert-list/alert-list.module'
 
 @NgModule({
   declarations: [HomeComponent],
@@ -31,6 +35,7 @@ import {QuotaListModule} from '../quota-list/quota-list.module'
     MatTabsModule, ItemsModule,
     MatTooltipModule, TimelineModule, DayViewModule, MatFormFieldModule,
     MatDatepickerModule, MatInputModule, QueueModule, QuotaListModule,
+    MatDividerModule, SettingsDialogModule, StartDialogModule, AlertListModule,
   ],
 })
 export class HomeModule {

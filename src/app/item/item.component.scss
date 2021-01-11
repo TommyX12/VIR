@@ -112,14 +112,42 @@
 
 .defer-date-text {
   font-size: 0.75em;
-  color: #4488ff;
+  color: #847ac6;
 }
 
 .due-date-text {
   font-size: 0.75em;
+  color: #479ec6;
+}
+
+.eta-date-text {
+  font-size: 0.75em;
   opacity: 0.75;
 }
 
+.problem-text {
+  font-size: 0.75em;
+  font-weight: bold;
+}
+
+.warning-lv-1 {
+  color: #b78057;
+}
+
+.warning-lv-2 {
+  color: #db5a5e;
+}
+
 .cost-text {
-  font-size: 0.85em;
+  font-size: 0.95em;
+}
+
+.cost-text ::ng-deep b {
+  color: #27b727;
+}
+
+.text-chip {
+  padding: 2px 5px;
+  border-radius: 3px;
+  background-color: #88888844;
 }

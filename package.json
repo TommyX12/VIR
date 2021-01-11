@@ -51,6 +51,7 @@
     "deepcopy": "2.1.0",
     "fuse.js": "6.4.3",
     "immer": "8.0.0",
+    "json-stable-stringify": "1.0.1",
     "material-design-icons": "3.0.1",
     "ngx-color-picker": "10.1.0"
   },
@@ -112,5 +113,10 @@
   },
   "engines": {
     "node": ">=10.13.0"
+  },
+  "browser": {
+    "fs": false,
+    "os": false,
+    "path": false
   }
 }

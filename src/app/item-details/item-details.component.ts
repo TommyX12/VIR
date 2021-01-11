@@ -106,6 +106,7 @@ export class ItemDetailsComponent implements AfterViewInit {
   repeatDayOfWeekOptions = REPEAT_DAY_OF_WEEK_OPTIONS
 
   repeatDayOfWeek: any
+  hasChildren: boolean
 
   constructor(
     public dialogRef: MatDialogRef<ItemDetailsComponent>,
@@ -116,12 +117,16 @@ export class ItemDetailsComponent implements AfterViewInit {
       this.draft = new ItemDraft()
       if (data.initialColor !== undefined) {
         this.draft.color = data.initialColor
+      } else {
+        this.draft.color = dataStore.generateColor()
       }
       this.draft.parentID = data.initialParent
       this.isAddingNewItem = true
+      this.hasChildren = false
     } else {
       this.draft = item.toDraft()
       this.isAddingNewItem = false
+      this.hasChildren = item.childrenIDs.length > 0
     }
 
     this.parentAutoCompleter = dataStore.createAutoCompleter()
@@ -340,7 +345,7 @@ export class ItemDetailsComponent implements AfterViewInit {
   }
 
   onDeferDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
-    let dayID = parseMatDatePicker(event)
+    let dayID = parseMatDatePicker(event, this.dataStore.getCurrentDayID())
     if (dayID === undefined) {
       this.clearDeferDate()
     } else {
@@ -350,7 +355,7 @@ export class ItemDetailsComponent implements AfterViewInit {
   }
 
   onDueDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
-    let dayID = parseMatDatePicker(event)
+    let dayID = parseMatDatePicker(event, this.dataStore.getCurrentDayID())
     if (dayID === undefined) {
       this.clearDueDate()
     } else {
@@ -360,7 +365,7 @@ export class ItemDetailsComponent implements AfterViewInit {
   }
 
   onRepeatEndDateChanged(event: MatDatepickerInputEvent<unknown, unknown>) {
-    let dayID = parseMatDatePicker(event)
+    let dayID = parseMatDatePicker(event, this.dataStore.getCurrentDayID())
     if (dayID === undefined) {
       this.clearRepeatEndDate()
     } else {
@@ -390,6 +395,10 @@ export class ItemDetailsComponent implements AfterViewInit {
 
   private errorInvalidItem(error: any) {
     alert((error as InvalidItemError).message)
+  }
+
+  get shouldShowCostWarning() {
+    return this.hasChildren
   }
 
   delete() {

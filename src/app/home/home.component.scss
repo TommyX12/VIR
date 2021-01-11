@@ -40,7 +40,11 @@
 }
 
 .right-margin {
-  margin-right: 5px;
+  margin-right: 10px;
+}
+
+.large-right-margin {
+  margin-right: 20px;
 }
 
 .hfill {
@@ -74,7 +78,17 @@
 }
 
 .title {
-  flex: 1;
+}
+
+.clock-time {
+  font-size: 0.8em;
+  font-weight: normal;
+}
+
+.clock-date {
+  font-size: 0.8em;
+  font-weight: normal;
+  opacity: 0.6;
 }
 
 .small-space {
@@ -102,4 +116,36 @@
   margin-right: 5px;
   position: relative;
   top: 1px;
+}
+
+.vertical-divider {
+  height: 30px;
+  margin: 0 15px;
+}
+
+.last-saved-time {
+  margin-right: 5px;
+  font-size: 0.65em;
+  font-weight: normal;
+  opacity: 0.3;
+}
+
+.alert-count-chip {
+  color: #ffffff;
+  font-size: 0.7em;
+  border-radius: 100px;
+  padding: 2px 5px;
+  margin-left: 5px;
+}
+
+.primary-alert-count {
+  background-color: #27b727;
+}
+
+.accent-alert-count {
+  background-color: #4488ff;
+}
+
+.warn-alert-count {
+  background-color: #cb3838;
 }

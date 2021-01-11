@@ -23,7 +23,7 @@ import {Subscription} from 'rxjs'
 import {getOrCreate} from '../util/util'
 import {HomeComponent} from '../home/home.component'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
-import {DataAnalyzer} from '../data/data-analyzer'
+import {AnalyzerProjectionStrategy, DataAnalyzer} from '../data/data-analyzer'
 import {MatSnackBar} from '@angular/material/snack-bar'
 import {QuickQuotaEditComponent} from '../quick-quota-edit/quick-quota-edit.component'
 
@@ -306,12 +306,15 @@ export class DayViewComponent implements OnInit, OnDestroy {
             itemDone: item.status === ItemStatus.COMPLETED,
           })
 
-          this.totalCount += count
+          if (type === SessionType.COMPLETED) {
+            this.totalCount += count
+          }
         }
       })
     })
 
-    const projections = this.dataAnalyzer.getProjections(this.dayID)
+    const projections = this.dataAnalyzer.getProjections(
+      AnalyzerProjectionStrategy.FORWARD, this.dayID)
     if (projections !== undefined) {
       projections.forEach((count, itemID) => {
         const item = this.dataStore.getItem(itemID)
@@ -328,8 +331,6 @@ export class DayViewComponent implements OnInit, OnDestroy {
             done: false,
             itemDone: item.status === ItemStatus.COMPLETED,
           })
-
-          this.totalCount += count
         }
       })
     }
@@ -382,7 +383,20 @@ export class DayViewComponent implements OnInit, OnDestroy {
   }
 
   getQuotaHtml() {
-    return `${this.totalCount} / <b>${this.quota}</b>`
+    if (this.dayID >= this.dataStore.getCurrentDayID() && this.quota > 0) {
+      if (this.totalCount > 0) {
+        if (this.totalCount >= this.quota) {
+          return `<b>${this.totalCount} / ${this.quota}</b>`
+        }
+        return `<b>${this.totalCount}</b> / ${this.quota}`
+      }
+      return `${this.quota}`
+    } else {
+      if (this.totalCount > 0) {
+        return `<b>${this.totalCount}</b>`
+      }
+      return ''
+    }
   }
 
   get progress() {

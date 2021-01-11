@@ -7,13 +7,15 @@ import {
   QueryList,
   ViewChildren,
 } from '@angular/core'
-import {dateAddDay, dateToDayID, dayIDNow, startOfWeek} from '../util/time-util'
+import {dateAddDay, dateToDayID, startOfWeek} from '../util/time-util'
 import {Subscription} from 'rxjs'
 import {DataStore} from '../data/data-store'
 import {MonthDayViewComponent} from '../month-day-view/month-day-view.component'
 import {HomeComponent} from '../home/home.component'
 import {DataAnalyzer} from '../data/data-analyzer'
 import {DayID} from '../data/common'
+import {ItemDetailsComponent} from '../item-details/item-details.component'
+import {MatDialog} from '@angular/material/dialog'
 
 @Component({
   selector: 'app-timeline',
@@ -28,10 +30,9 @@ export class TimelineComponent implements OnInit, OnDestroy {
   columns = [0, 1, 2, 3, 4, 5, 6]
   _viewRange: 'week' | 'month' = 'month'
 
-  // TODO: implement this
-  dayStartOffsetMinutes = 0
+  private _useBackwardStrategy = false
 
-  todayDayID = dayIDNow(this.dayStartOffsetMinutes)
+  todayDayID: DayID
 
   private _weekStartDate = startOfWeek(new Date())
 
@@ -68,9 +69,21 @@ export class TimelineComponent implements OnInit, OnDestroy {
     private readonly dataAnalyzer: DataAnalyzer,
     private readonly changeDetectorRef: ChangeDetectorRef,
     private readonly zone: NgZone,
+    private readonly dialog: MatDialog,
     readonly home: HomeComponent,
   ) {
     this.viewRange = 'month' // Ensure row is updated
+    this.todayDayID = dataStore.getCurrentDayID()
+  }
+
+  get useBackwardStrategy(): boolean {
+    return this._useBackwardStrategy
+  }
+
+  set useBackwardStrategy(value: boolean) {
+    if (value === this.useBackwardStrategy) return
+    this._useBackwardStrategy = value
+    this.refresh()
   }
 
   get weekStartDate(): Date {
@@ -100,7 +113,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     this.zone.runOutsideAngular(() => {
       this.updateIntervalID = setInterval(() => {
-        const newTodayDayID = dayIDNow(this.dayStartOffsetMinutes)
+        const newTodayDayID = this.dataStore.getCurrentDayID()
         if (this.todayDayID !== newTodayDayID) {
           this.todayDayID = newTodayDayID
           this.changeDetectorRef.detectChanges()
@@ -170,6 +183,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   private refresh() {
     this.changeDetectorRef.detectChanges()
     this.monthDayViews?.forEach(monthDayView => {
+      monthDayView.useBackwardStrategy = this.useBackwardStrategy
       monthDayView.processData()
     })
   }
@@ -206,5 +220,28 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
   private invalidateQuotaCache() {
     this.cachedQuota = undefined
+  }
+
+  getFreeTimeHtml() {
+    const info = this.dataAnalyzer.getFreeTimeEstimate()
+    return `<b>${info.freeQuota}</b> / ${info.totalQuota}`
+  }
+
+  get freeTimeDepleted() {
+    const info = this.dataAnalyzer.getFreeTimeEstimate()
+    return info.freeQuota <= 0
+  }
+
+  newItem() {
+    const dialogRef = this.dialog.open(ItemDetailsComponent, {
+      width: ItemDetailsComponent.DIALOG_WIDTH,
+      data: {},
+      hasBackdrop: true,
+      disableClose: false,
+      autoFocus: false,
+    })
+
+    dialogRef.afterClosed().subscribe(result => {
+    })
   }
 }

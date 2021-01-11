@@ -8,6 +8,7 @@ import {MatCheckboxModule} from '@angular/material/checkbox'
 import {FormsModule} from '@angular/forms'
 import {SharedModule} from '../shared/shared.module'
 import {MatSnackBarModule} from '@angular/material/snack-bar'
+import {MatTooltipModule} from '@angular/material/tooltip'
 
 
 @NgModule({
@@ -21,6 +22,7 @@ import {MatSnackBarModule} from '@angular/material/snack-bar'
     FormsModule,
     SharedModule,
     MatSnackBarModule,
+    MatTooltipModule,
   ],
   exports: [ItemComponent],
 })

@@ -33,9 +33,9 @@
           <div prefix style="width: 10px;">
           </div>
           <div suffix>
+            <!-- tooltip may cause bug-->
             <button mat-icon-button
-                    matTooltip="Delete"
-                    matTooltipPosition="above"
+                    color="warn"
                     (click)="removeItem(node)">
               <mat-icon>close</mat-icon>
             </button>

@@ -22,13 +22,32 @@
       <span class="item-name app-single-line-text">
         {{node.name}}
       </span>
-      <span class="app-single-line-text defer-date-text large-right-margin"
-            *ngIf="node.effectiveDeferDate !== undefined">
+      <span
+        class="app-single-line-text defer-date-text right-margin text-chip"
+        *ngIf="node.effectiveDeferDate !== undefined">
         Defer: {{getEffectiveDeferDate() | date:'MMM d'}}
       </span>
-      <span class="app-single-line-text due-date-text large-right-margin"
-            *ngIf="node.effectiveDueDate !== undefined">
-        Due: {{getEffectiveDueDate() | date:'MMM d'}}
+      <span
+        class="app-single-line-text due-date-text right-margin text-chip"
+        [class.warning-lv-2]="overdue"
+        *ngIf="node.effectiveDueDate !== undefined">
+        Due: ({{getEffectiveDueDateDeltaText()}})
+        {{getEffectiveDueDate() | date:'MMM d'}}
+      </span>
+      <span
+        class="app-single-line-text problem-text right-margin text-chip"
+        [class.warning-lv-1]="node.problem === problemType.IMPOSSIBLE_BY_QUEUE"
+        [class.warning-lv-2]="node.problem === problemType.IMPOSSIBLE_BY_LATE"
+        *ngIf="node.problem !== undefined">
+        {{node.problem === problemType.IMPOSSIBLE_BY_QUEUE ? 'Conflict' : 'Impossible'}}
+      </span>
+      <span
+        class="app-single-line-text eta-date-text right-margin text-chip"
+        [class.warning-lv-1]="etaWarningLevel === 1"
+        [class.warning-lv-2]="etaWarningLevel === 2"
+        *ngIf="node.problem === undefined && node.estimatedDoneDate !== undefined">
+        Est. ({{getEstimatedDoneDateDeltaText()}})
+        {{getEstimatedDoneDate() | date:'MMM d'}}
       </span>
       <span class="app-single-line-text cost-text"
             [innerHTML]="getCostHtml()"></span>

@@ -12,6 +12,8 @@ import {MatDatepickerModule} from '@angular/material/datepicker'
 import {MatFormFieldModule} from '@angular/material/form-field'
 import {MatInputModule} from '@angular/material/input'
 import {MatNativeDateModule} from '@angular/material/core'
+import {MatSlideToggleModule} from '@angular/material/slide-toggle'
+import {SessionChipModule} from '../session-chip/session-chip.module'
 
 
 @NgModule({
@@ -29,6 +31,8 @@ import {MatNativeDateModule} from '@angular/material/core'
     MatFormFieldModule,
     MatInputModule,
     MatNativeDateModule,
+    MatSlideToggleModule,
+    SessionChipModule,
   ],
   exports: [TimelineComponent],
 })

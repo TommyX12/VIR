@@ -1,0 +1,34 @@
+<div class="container">
+  <div class="alert-list-container" #scrollContainer>
+    <cdk-virtual-scroll-viewport [itemSize]="itemHeight" minBufferPx="1400"
+                                 #scrollViewport
+                                 maxBufferPx="1800" class="alert-list-viewport">
+      <div *cdkVirtualFor="let node of data"
+           [style.height]="itemHeight + 'px'"
+           [style.min-height]="itemHeight + 'px'"
+           [style.max-height]="itemHeight + 'px'"
+           class="entry-container"
+           draggable="true">
+        <div class="entry"
+             [matMenuTriggerFor]="actionMenu">
+          <mat-icon class="entry-icon"
+                    [color]="node.alert.color">
+            {{node.alert.icon}}
+          </mat-icon>
+          <span class="app-single-line-text entry-text"
+                [innerHTML]="node.displayHtml">
+        </span>
+        </div>
+        <mat-menu #actionMenu="matMenu">
+          <ng-template matMenuContent>
+            <button mat-menu-item
+                    (click)="action.execute(node.alert.data, alertActionCtx)"
+                    *ngFor="let action of node.supportedActions">
+              {{action.displayName}}
+            </button>
+          </ng-template>
+        </mat-menu>
+      </div>
+    </cdk-virtual-scroll-viewport>
+  </div>
+</div>
