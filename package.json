@@ -1,8 +1,8 @@
 {
-  "name": "angular-electron",
-  "version": "9.0.2",
-  "description": "Angular 11 with Electron (Typescript + SASS + Hot Reload)",
-  "homepage": "https://github.com/maximegris/angular-electron",
+  "name": "vir",
+  "version": "0.0.1",
+  "description": "A powerful time manager.",
+  "homepage": "https://github.com/TommyX12/VIR",
   "author": {
     "name": "Maxime GRIS",
     "email": "maxime.gris@gmail.com"

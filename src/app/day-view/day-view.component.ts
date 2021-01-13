@@ -400,7 +400,7 @@ export class DayViewComponent implements OnInit, OnDestroy {
   }
 
   get progress() {
-    if (this.quota <= 0) {
+    if (this.dayID < this.dataStore.getCurrentDayID() || this.quota <= 0) {
       return 0
     }
     return Math.min(Math.max(this.totalCount / this.quota, 0), 1)
@@ -417,5 +417,10 @@ export class DayViewComponent implements OnInit, OnDestroy {
       disableClose: false,
       autoFocus: false,
     })
+  }
+
+  onCompleteItemButtonClicked(event: MouseEvent, session: Session) {
+    this.toggleItemDone(session)
+    event.preventDefault()
   }
 }

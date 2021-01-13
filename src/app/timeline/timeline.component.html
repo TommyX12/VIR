@@ -42,6 +42,10 @@
        [class.warning]="freeTimeDepleted"
        [innerHTML]="getFreeTimeHtml()"></p>
     <app-session-chip></app-session-chip>
+    <div class="free-time-progress-bar">
+      <div class="free-time-progress-bar-fill"
+           [style.width]="getFreeTimeProgressValue() * 100 + '%'"></div>
+    </div>
     <div class="hfill"></div>
     <mat-slide-toggle color="warn" [(ngModel)]="useBackwardStrategy"
                       matTooltip="View Late Strategy"

@@ -1257,14 +1257,15 @@ export class DataStore {
       }
     }
 
-    if (draft.cost < 0) {
+    if (draft.cost < 0 || !Number.isInteger(draft.cost)) {
       throw {
         type: 'invalidCost',
         message: 'Error: Invalid cost',
       }
     }
 
-    if (draft.repeat !== undefined && draft.repeatInterval <= 0) {
+    if (draft.repeat !== undefined &&
+      (draft.repeatInterval <= 0 || !Number.isInteger(draft.repeatInterval))) {
       throw {
         type: 'invalidRepeat',
         message: 'Error: Invalid repeat interval',
@@ -1302,6 +1303,7 @@ export class DataStore {
         this.updateAncestorChainStatisticsReducer(draft, id)
       })
     this.notify()
+    return id
   }
 
   /**
@@ -1506,6 +1508,7 @@ export class DataStore {
   }
 
   public quickEditQuotaRule(dayID: DayID, value: number) {
+    value = Math.max(0, Math.round(value))
     const numQuotaRules = this.state.quotaRuleOrder.length
     const tempMap = new Map<DayID, number>()
     for (let i = numQuotaRules - 1; i >= 0; i--) {
@@ -2019,7 +2022,7 @@ export class DataStore {
       }
     }
     if (isConstantQuotaRule(quotaRuleDraft)) {
-      if (quotaRuleDraft.value < 0) {
+      if (quotaRuleDraft.value < 0 || !Number.isInteger(quotaRuleDraft.value)) {
         throw {
           type: 'invalidValue',
           message: 'Error: Invalid quota value',

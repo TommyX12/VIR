@@ -16,6 +16,7 @@ import {DataAnalyzer} from '../data/data-analyzer'
 import {DayID} from '../data/common'
 import {ItemDetailsComponent} from '../item-details/item-details.component'
 import {MatDialog} from '@angular/material/dialog'
+import {clamp} from '../util/util'
 
 @Component({
   selector: 'app-timeline',
@@ -243,5 +244,11 @@ export class TimelineComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe(result => {
     })
+  }
+
+  getFreeTimeProgressValue() {
+    const info = this.dataAnalyzer.getFreeTimeEstimate()
+    if (info.totalQuota === 0) return 0
+    return clamp(info.freeQuota / info.totalQuota, 0, 1)
   }
 }

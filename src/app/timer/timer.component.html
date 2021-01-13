@@ -1,0 +1,28 @@
+<div class="flex-row">
+  <button mat-icon-button (click)="toggleTimer()"
+          matTooltip="Timer"
+          matTooltipPosition="below"
+          [color]="timerEnabled ? 'primary' : undefined">
+    <mat-icon>
+      timer
+    </mat-icon>
+  </button>
+  <div class="flex-row" *ngIf="timerEnabled">
+    <button mat-icon-button (click)="reset()" [disabled]="!started">
+      <mat-icon>
+        {{running ? 'replay' : 'stop'}}
+      </mat-icon>
+    </button>
+    <button mat-icon-button (click)="startOrPause()">
+      <mat-icon>
+        {{running ? 'pause' : 'play_arrow'}}
+      </mat-icon>
+    </button>
+  </div>
+  <span class="elapsed-text" *ngIf="started">
+    {{elapsedText | async}}
+  </span>
+  <span class="started-text" *ngIf="started">
+    Started: {{startedDate | async | date:'shortTime'}}
+  </span>
+</div>

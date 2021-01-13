@@ -13,11 +13,13 @@ import {
 } from '../data/data-store'
 import Color from 'color'
 import {
+  DayID,
   Item,
   ItemDraft,
   ItemID,
   ItemStatus,
   REPEAT_TYPE_FACTORY_BY_TYPE,
+  WeeklyRepeatType,
 } from '../data/common'
 import {BehaviorSubject} from 'rxjs'
 import {MatDatepickerInputEvent} from '@angular/material/datepicker'
@@ -45,6 +47,11 @@ export interface ItemDetailsConfig {
    * When item is present, this field is ignored.
    */
   initialPriorityPredecessor?: ItemID
+
+  /**
+   * When item is present, this field is ignored.
+   */
+  initialDueDate?: DayID
 }
 
 const REPEAT_TYPE_OPTIONS = [
@@ -105,7 +112,6 @@ export class ItemDetailsComponent implements AfterViewInit {
   repeatTypeOptions = REPEAT_TYPE_OPTIONS
   repeatDayOfWeekOptions = REPEAT_DAY_OF_WEEK_OPTIONS
 
-  repeatDayOfWeek: any
   hasChildren: boolean
 
   constructor(
@@ -121,6 +127,7 @@ export class ItemDetailsComponent implements AfterViewInit {
         this.draft.color = dataStore.generateColor()
       }
       this.draft.parentID = data.initialParent
+      this.draft.dueDate = data.initialDueDate
       this.isAddingNewItem = true
       this.hasChildren = false
     } else {
@@ -261,6 +268,15 @@ export class ItemDetailsComponent implements AfterViewInit {
     this.draft.repeatInterval = v
   }
 
+  get repeatDayOfWeek() {
+    return (this.draft.repeat as WeeklyRepeatType).dayOfWeek
+  }
+
+  set repeatDayOfWeek(value: number[]) {
+    if (this.draft.repeat === undefined) return
+    (this.draft.repeat as WeeklyRepeatType).dayOfWeek = value
+  }
+
   close(): void {
     this.dialogRef.close()
   }
@@ -291,7 +307,7 @@ export class ItemDetailsComponent implements AfterViewInit {
     const priorityPredecessorID = this.priorityPredecessorAutoCompleter.keyToID(
       this._priorityPredecessorItemKey)
     const autoAdjustPriority = this.draft.autoAdjustPriority
-    const itemID = this.draft.id
+    let itemID = this.draft.id
 
     // Finalize
     try {
@@ -302,7 +318,7 @@ export class ItemDetailsComponent implements AfterViewInit {
     }
     this.dataStore.batchEdit(it => {
       if (this.isAddingNewItem) {
-        it.addItem(this.draft)
+        itemID = it.addItem(this.draft)
       } else {
         it.updateItem(this.draft)
       }

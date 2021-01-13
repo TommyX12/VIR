@@ -1,5 +1,5 @@
 <div class="header">
-  <b>Item</b>
+  <b>{{isAddingNewItem ? 'New Item' : 'Item'}}</b>
   <div class="hfill"></div>
   <button mat-icon-button (click)="close()">
     <mat-icon>close</mat-icon>
@@ -108,7 +108,7 @@
     <div class="full-width-field bottom-margin"
          *ngIf="dueDate && repeatType === 'week'">
       <mat-button-toggle-group multiple name="repeatDayOfWeek"
-                               [(ngModel)]="draft.repeat.dayOfWeek">
+                               [(ngModel)]="repeatDayOfWeek">
         <mat-button-toggle *ngFor="let option of repeatDayOfWeekOptions"
                            [value]="option.value">
           {{option.dowDate | date:'E'}}

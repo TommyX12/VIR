@@ -1013,7 +1013,7 @@ export class DataAnalyzer {
                                   result: FreeTimeEstimate) {
     const rangeStart = currentDate
     // TODO change the hard-coded 30 days
-    const rangeEnd = Math.min(rangeStart + 30, maxProjectionEndDate)
+    const rangeEnd = Math.min(rangeStart + 29, maxProjectionEndDate)
     for (let d = rangeStart; d <= rangeEnd; ++d) {
       const quota = (quotaInfo.get(d) || 0)
       let usedQuota = 0

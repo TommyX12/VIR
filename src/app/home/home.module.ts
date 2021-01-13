@@ -26,6 +26,7 @@ import {MatDividerModule} from '@angular/material/divider'
 import {SettingsDialogModule} from '../settings-dialog/settings-dialog.module'
 import {StartDialogModule} from '../start-dialog/start-dialog.module'
 import {AlertListModule} from '../alert-list/alert-list.module'
+import {TimerModule} from '../timer/timer.module'
 
 @NgModule({
   declarations: [HomeComponent],
@@ -36,6 +37,7 @@ import {AlertListModule} from '../alert-list/alert-list.module'
     MatTooltipModule, TimelineModule, DayViewModule, MatFormFieldModule,
     MatDatepickerModule, MatInputModule, QueueModule, QuotaListModule,
     MatDividerModule, SettingsDialogModule, StartDialogModule, AlertListModule,
+    TimerModule,
   ],
 })
 export class HomeModule {

@@ -208,4 +208,10 @@ export class ItemComponent implements OnInit {
       this.node.effectiveDueDate - this.dataStore.getCurrentDayID() : 0
     return value >= 0 ? `+${value}` : `${value}`
   }
+
+  getEffectiveDeferDateDeltaText() {
+    let value = this.node.effectiveDeferDate ?
+      this.node.effectiveDeferDate - this.dataStore.getCurrentDayID() : 0
+    return value >= 0 ? `+${value}` : `${value}`
+  }
 }

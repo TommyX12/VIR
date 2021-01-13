@@ -94,6 +94,7 @@
   height: 100%;
   border-right: 1px solid #88888866;
   border-top: 1px solid #88888866;
+  box-sizing: border-box;
 }
 
 .free-time-text ::ng-deep b {
@@ -104,4 +105,22 @@
   font-size: 0.9em;
   opacity: 0.8;
   margin-right: 15px;
+}
+
+.free-time-progress-bar {
+  margin-left: 10px;
+  width: 45px;
+  height: 15px;
+  border-radius: 5px;
+  border: 1px solid #88888888;
+  overflow: hidden;
+  position: relative;
+}
+
+.free-time-progress-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background-color: #55bbea;
 }

@@ -25,7 +25,8 @@
       <span
         class="app-single-line-text defer-date-text right-margin text-chip"
         *ngIf="node.effectiveDeferDate !== undefined">
-        Defer: {{getEffectiveDeferDate() | date:'MMM d'}}
+        Defer: ({{getEffectiveDeferDateDeltaText()}})
+        {{getEffectiveDeferDate() | date:'MMM d'}}
       </span>
       <span
         class="app-single-line-text due-date-text right-margin text-chip"

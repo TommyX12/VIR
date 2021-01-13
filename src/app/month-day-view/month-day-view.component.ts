@@ -351,7 +351,8 @@ export class MonthDayViewComponent implements OnInit {
   }
 
   get progress() {
-    if (this.quota === undefined || this.quota <= 0) {
+    if (this.dayID < this.dataStore.getCurrentDayID() || this.quota ===
+      undefined || this.quota <= 0) {
       return 0
     }
     return Math.min(Math.max(this.totalCount / this.quota, 0), 1)
@@ -359,5 +360,17 @@ export class MonthDayViewComponent implements OnInit {
 
   sessionTrackByFn(index: number, session: Session) {
     return session.item.id
+  }
+
+  addNewItemDueHere() {
+    const dialogRef = this.dialog.open(ItemDetailsComponent, {
+      width: ItemDetailsComponent.DIALOG_WIDTH,
+      data: {
+        initialDueDate: this.dayID,
+      },
+      hasBackdrop: true,
+      disableClose: false,
+      autoFocus: false,
+    })
   }
 }
