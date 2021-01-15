@@ -44,7 +44,7 @@ export class QuotaListComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild(
     'scrollViewport', {read: ElementRef}) scrollViewportElement?: ElementRef
 
-  itemHeight = 45
+  itemHeight = 35
 
   private onDataChanged = (dataStore: DataStore) => {
     this.refresh()

@@ -39,10 +39,11 @@ const DISPLAY_HTML_GENERATORS: {
       if (item === undefined) return ''
       const dueDate = task.end
       if (dueDate === undefined) {
-        return `Item <b>${item.name}</b> is uncompletable in the current queue.`
+        return `Item <b>${item.name}</b> is not completable in the current queue.`
       }
       return `Item <b>${item.name}</b> (due ${getShortDateDisplayName(
-        dayIDToDate(dueDate))}) is uncompletable in the current queue.`
+        dayIDToDate(
+          dueDate))}) is not completable in the current queue.`
     },
   },
   {
@@ -88,7 +89,7 @@ export class AlertListComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild(
     'scrollViewport', {read: ElementRef}) scrollViewportElement?: ElementRef
 
-  itemHeight = 45
+  itemHeight = 35
 
   private onDataChanged = (dataStore: DataStore) => {
     this.refresh()

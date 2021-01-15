@@ -64,7 +64,8 @@ class ItemFilter {
     }
 
     if (this.autocompleter !== undefined && this.searchQuery !== '') {
-      const resultIDs = new Set(this.autocompleter.queryIDs(this.searchQuery))
+      const resultIDs = new Set(
+        this.autocompleter.queryIDs(this.searchQuery))
       items = items.filter(item => resultIDs.has(item.id))
     }
 
@@ -86,7 +87,7 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild(
     'scrollViewport', {read: ElementRef}) scrollViewportElement?: ElementRef
 
-  itemHeight = 35
+  itemHeight = 30
   indentation: number = 20
 
   filter: ItemFilter = new ItemFilter()
@@ -94,7 +95,8 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
   indirectAllowedItemIDs = new Set<ItemID>()
 
   private _getChildren = (node: Item) => {
-    // NOTE: This will always return a new array, so we can directly modify it
+    // NOTE: This will always return a new array, so we can directly modify
+    // it
     const children = this.dataStore.getChildren(node)
     return children.filter(item => this.allowedItemIDs.has(item.id))
   }
@@ -128,8 +130,10 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
       cost: item.cost,
       isIndirect: this.indirectAllowedItemIDs.has(item.id),
       color: this.dataStore.getItemColor(item),
-      canRepeat: item.repeat !== undefined && !effectiveInfo.hasAncestorRepeat,
-      effectiveProgress: this.dataAnalyzer.getEffectiveProgress(item.id) || 0,
+      canRepeat: item.repeat !== undefined &&
+        !effectiveInfo.hasAncestorRepeat,
+      effectiveProgress: this.dataAnalyzer.getEffectiveProgress(
+        item.id) || 0,
     }
   }
 
@@ -457,7 +461,10 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
   onItemDropped(event: ItemDroppedEvent) {
     const {draggedItemID, receiverItemID, insertionType} = event
     if (insertionType === ItemDroppedInsertionType.CHILD) {
-      if (!this.dataStore.canBeParentOf(draggedItemID, receiverItemID)) return
+      if (!this.dataStore.canBeParentOf(
+        draggedItemID, receiverItemID)) {
+        return
+      }
       const item = this.dataStore.getItem(draggedItemID)
       if (item !== undefined) {
         const draft = item.toDraft()
@@ -470,10 +477,12 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
       const item = this.dataStore.getItem(draggedItemID)
       if (item !== undefined) {
         const draft = item.toDraft()
-        const insert = insertionType === ItemDroppedInsertionType.BELOW ?
+        const insert = insertionType ===
+        ItemDroppedInsertionType.BELOW ?
           'below' : 'above'
         draft.parentID = parentID
-        this.dataStore.updateItem(draft, {anchor: receiverItemID, insert})
+        this.dataStore.updateItem(
+          draft, {anchor: receiverItemID, insert})
       }
     }
   }

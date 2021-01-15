@@ -37,8 +37,7 @@
       </span>
       <span
         class="app-single-line-text problem-text right-margin text-chip"
-        [class.warning-lv-1]="node.problem === problemType.IMPOSSIBLE_BY_QUEUE"
-        [class.warning-lv-2]="node.problem === problemType.IMPOSSIBLE_BY_LATE"
+        [class.warning-lv-2]="node.problem !== undefined"
         *ngIf="node.problem !== undefined">
         {{node.problem === problemType.IMPOSSIBLE_BY_QUEUE ? 'Conflict' : 'Impossible'}}
       </span>

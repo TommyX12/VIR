@@ -56,7 +56,7 @@ export class QueueComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild(
     'scrollViewport', {read: ElementRef}) scrollViewportElement?: ElementRef
 
-  itemHeight = 35
+  itemHeight = 30
 
   filter: ItemFilter = new ItemFilter()
   allowedItemIDs = new Set<ItemID>()

@@ -1,19 +1,20 @@
 <div class="flex-row">
   <button mat-icon-button (click)="toggleTimer()"
           matTooltip="Timer"
-          matTooltipPosition="below"
           [color]="timerEnabled ? 'primary' : undefined">
     <mat-icon>
       timer
     </mat-icon>
   </button>
   <div class="flex-row" *ngIf="timerEnabled">
-    <button mat-icon-button (click)="reset()" [disabled]="!started">
+    <button mat-icon-button (click)="reset()" [disabled]="!started"
+            [matTooltip]="running ? 'Restart' : 'Stop'">
       <mat-icon>
         {{running ? 'replay' : 'stop'}}
       </mat-icon>
     </button>
-    <button mat-icon-button (click)="startOrPause()">
+    <button mat-icon-button (click)="startOrPause()"
+            [matTooltip]="running ? 'Pause' : 'Start'">
       <mat-icon>
         {{running ? 'pause' : 'play_arrow'}}
       </mat-icon>
