@@ -8,6 +8,9 @@
         <mat-icon>close</mat-icon>
       </button>
     </mat-form-field>
+    <mat-checkbox class="show-deferred-checkbox" [(ngModel)]="showDeferred">
+      Show Deferred
+    </mat-checkbox>
     <button mat-stroked-button (click)="newItem()" color="accent"
             class="left-margin">
       <mat-icon>add</mat-icon>
@@ -28,6 +31,7 @@
            class="item">
         <app-item [node]="node" class="item-content"
                   [itemHeight]="itemHeight"
+                  [canShowInQueue]="false"
                   (itemDropped)="onItemDropped($event)"
                   (bodyClicked)="openDetails(node.id)">
           <div prefix style="width: 10px;">

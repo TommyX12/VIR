@@ -6,8 +6,30 @@
      [style.background-color]="node.color.fade(0.8).string()"
      [class.container-faded]="done">
   <div #decorationContainer class="decoration"
-       (click)="onBodyClicked()">
+       (click)="onBodyClicked()"
+       (contextmenu)="onContextMenu($event)">
   </div>
+  <div style="visibility: hidden; position: absolute; left: 0; top: 0;"
+       #contextMenuTrigger
+       [matMenuTriggerFor]="contextMenu">
+  </div>
+  <mat-menu #contextMenu="matMenu">
+    <ng-template matMenuContent>
+      <button mat-menu-item *ngIf="canShowInItems" (click)="showInItems()">
+        <mat-icon>apps</mat-icon>
+        Show in items
+      </button>
+      <button mat-menu-item *ngIf="canShowInQueue && !done"
+              (click)="showInQueue()">
+        <mat-icon>playlist_play</mat-icon>
+        Show in queue
+      </button>
+      <button mat-menu-item (click)="delete()">
+        <mat-icon color="warn">close</mat-icon>
+        Delete
+      </button>
+    </ng-template>
+  </mat-menu>
   <div class="inner-content">
     <div class="color-block" [style.background-color]="getChipColor()"></div>
     <ng-content select="[prefix]"></ng-content>
@@ -19,12 +41,13 @@
     <div class="item-body"
          [class.is-indirect]="node.isIndirect && !done"
          [class.faded]="done">
-      <span class="item-name app-single-line-text">
+      <span class="item-name app-single-line-text"
+            [class.deferred-name]="deferred && !done">
         {{node.name}}
       </span>
       <span
         class="app-single-line-text defer-date-text right-margin text-chip"
-        *ngIf="node.effectiveDeferDate !== undefined">
+        *ngIf="node.effectiveDeferDate !== undefined && deferred">
         Defer: ({{getEffectiveDeferDateDeltaText()}})
         {{getEffectiveDeferDate() | date:'MMM d'}}
       </span>

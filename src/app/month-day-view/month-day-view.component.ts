@@ -49,6 +49,7 @@ export class MonthDayViewComponent implements OnInit {
   private _dayData?: DayData
 
   totalCount = 0
+  doneCount = 0
 
   constructor(
     private readonly dataStore: DataStore,
@@ -77,6 +78,7 @@ export class MonthDayViewComponent implements OnInit {
     if (dayData === undefined) return
     this.sessions = []
     this.totalCount = 0
+    this.doneCount = 0
     dayData.sessions.forEach((sessions, type) => {
       sessions.forEach((count, itemID) => {
         const item = this.dataStore.getItem(itemID)
@@ -93,8 +95,10 @@ export class MonthDayViewComponent implements OnInit {
           })
 
           if (type === SessionType.COMPLETED) {
-            this.totalCount += count
+            this.doneCount += count
           }
+
+          this.totalCount += count
         }
       })
     })
@@ -116,6 +120,8 @@ export class MonthDayViewComponent implements OnInit {
             done: false,
             itemDone: item.status === ItemStatus.COMPLETED,
           })
+
+          this.totalCount += count
         }
       })
     }
@@ -335,16 +341,16 @@ export class MonthDayViewComponent implements OnInit {
   getQuotaHtml() {
     if (this.dayID >= this.dataStore.getCurrentDayID() && this.quota !==
       undefined) {
-      if (this.totalCount > 0) {
-        if (this.totalCount >= this.quota) {
-          return `<b>${this.totalCount} / ${this.quota}</b>`
+      if (this.doneCount > 0) {
+        if (this.doneCount >= this.quota) {
+          return `<b>${this.doneCount} / ${this.quota}</b>`
         }
-        return `<b>${this.totalCount}</b> / ${this.quota}`
+        return `<b>${this.doneCount}</b> / ${this.quota}`
       }
       return `${this.quota}`
     } else {
-      if (this.totalCount > 0) {
-        return `<b>${this.totalCount}</b>`
+      if (this.doneCount > 0) {
+        return `<b>${this.doneCount}</b>`
       }
       return ''
     }
@@ -356,6 +362,14 @@ export class MonthDayViewComponent implements OnInit {
       return 0
     }
     return Math.min(Math.max(this.totalCount / this.quota, 0), 1)
+  }
+
+  get progressDone() {
+    if (this.dayID < this.dataStore.getCurrentDayID() || this.quota ===
+      undefined || this.quota <= 0) {
+      return 0
+    }
+    return Math.min(Math.max(this.doneCount / this.quota, 0), 1)
   }
 
   sessionTrackByFn(index: number, session: Session) {

@@ -26,13 +26,24 @@ const SEARCH_IDLE_DELAY = 200
 
 class ItemFilter {
   searchQuery: string = ''
+  showDeferred = true
   autocompleter?: DataStoreAutoCompleter
 
   get isSearching() {
     return this.searchQuery !== ''
   }
 
-  process(items: Item[]): Item[] {
+  process(items: Item[], dataStore: DataStore): Item[] {
+    const currentDate = dataStore.getCurrentDayID()
+
+    if (!this.showDeferred) {
+      // TODO optimize this
+      items = items.filter(item => {
+        const deferDate = dataStore.getEffectiveDeferDate(item)
+        return deferDate === undefined || deferDate <= currentDate
+      })
+    }
+
     if (this.autocompleter !== undefined && this.searchQuery !== '') {
       const resultIDs = new Set(this.autocompleter.queryIDs(this.searchQuery))
       items = items.filter(item => resultIDs.has(item.id))
@@ -141,6 +152,16 @@ export class QueueComponent implements OnInit, OnDestroy, AfterViewInit {
     })
   }
 
+  get showDeferred() {
+    return this.filter.showDeferred
+  }
+
+  set showDeferred(value: boolean) {
+    if (value === this.filter.showDeferred) return
+    this.filter.showDeferred = value
+    this.refresh()
+  }
+
   removeItem(node: ItemNode) {
     this.dataStore.removeItem(node.id)
   }
@@ -171,7 +192,7 @@ export class QueueComponent implements OnInit, OnDestroy, AfterViewInit {
     this.dataStore.state.items.forEach((item) => {
       items.push(item)
     })
-    const allowedQueue = this.filter.process(items)
+    const allowedQueue = this.filter.process(items, this.dataStore)
     this.allowedItemIDs = new Set(allowedQueue.map(item => item.id))
   }
 

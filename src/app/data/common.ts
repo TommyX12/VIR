@@ -154,6 +154,7 @@ export class Item {
     public readonly repeatInterval: number = 1,
     public readonly repeatEndDate?: DayID,
     public readonly repeatOnCompletion: boolean = false,
+    public readonly repeatDeferOffset?: number,
   ) {
     this.repeat = deepcopy(repeat)
     this.effectiveCost = cost
@@ -176,6 +177,7 @@ export class Item {
       this.repeatInterval,
       this.repeatEndDate,
       this.repeatOnCompletion,
+      this.repeatDeferOffset,
     )
   }
 
@@ -199,6 +201,7 @@ export class Item {
       repeatInterval: value.repeatInterval,
       repeatEndDate: value.repeatEndDate,
       repeatOnCompletion: value.repeatOnCompletion,
+      repeatDeferOffset: value.repeatDeferOffset,
     }
   }
 
@@ -221,6 +224,7 @@ export class Item {
       quickDeserializeRequired(map.repeatInterval),
       quickDeserialize(map.repeatEndDate, undefined),
       quickDeserializeRequired(map.repeatOnCompletion),
+      quickDeserialize(map.repeatDeferOffset, undefined),
     )
     result.effectiveCost = quickDeserializeRequired(map.effectiveCost)
     result.residualCost = quickDeserializeRequired(map.residualCost)
@@ -246,6 +250,7 @@ export class ItemDraft {
     public repeatInterval: number = 1,
     public repeatEndDate?: DayID,
     public repeatOnCompletion: boolean = false,
+    public repeatDeferOffset?: number,
   ) {
     this.repeat = deepcopy(repeat)
   }
@@ -267,6 +272,7 @@ export class ItemDraft {
       this.repeatInterval,
       this.repeatEndDate,
       this.repeatOnCompletion,
+      this.repeatDeferOffset,
     )
   }
 
@@ -284,6 +290,7 @@ export class ItemDraft {
     item.repeatInterval = this.repeatInterval
     item.repeatEndDate = this.repeatEndDate
     item.repeatOnCompletion = this.repeatOnCompletion
+    item.repeatDeferOffset = this.repeatDeferOffset
   }
 }
 

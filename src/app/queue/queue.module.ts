@@ -15,6 +15,7 @@ import {FormsModule} from '@angular/forms'
 import {DragDropModule} from '@angular/cdk/drag-drop'
 import {ScrollingModule} from '@angular/cdk/scrolling'
 import {MatButtonToggleModule} from '@angular/material/button-toggle'
+import {MatCheckboxModule} from '@angular/material/checkbox'
 
 @NgModule({
   declarations: [QueueComponent],
@@ -34,6 +35,7 @@ import {MatButtonToggleModule} from '@angular/material/button-toggle'
     DragDropModule,
     ScrollingModule,
     MatButtonToggleModule,
+    MatCheckboxModule,
   ],
   exports: [
     QueueComponent,

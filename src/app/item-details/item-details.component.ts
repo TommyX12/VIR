@@ -239,6 +239,32 @@ export class ItemDetailsComponent implements AfterViewInit {
     }
   }
 
+  get repeatDeferOffsetEnabled() {
+    return this.draft.repeatDeferOffset !== undefined
+  }
+
+  set repeatDeferOffsetEnabled(value: boolean) {
+    if (value) {
+      if (this.draft.repeatDeferOffset !== undefined) return
+      this.draft.repeatDeferOffset = 0
+    } else {
+      this.draft.repeatDeferOffset = undefined
+    }
+  }
+
+  get repeatDeferOffsetString() {
+    return this.draft.repeatDeferOffset === undefined ? '' :
+      this.draft.repeatDeferOffset.toString()
+  }
+
+  set repeatDeferOffsetString(value: string) {
+    let v = Number(value)
+    if (isNaN(v) || v < 0) {
+      v = 0
+    }
+    this.draft.repeatDeferOffset = v
+  }
+
   get repeatType() {
     const repeatType = this.draft.repeat
     if (repeatType === undefined) return undefined

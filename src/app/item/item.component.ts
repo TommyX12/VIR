@@ -14,6 +14,8 @@ import {ItemID, ItemStatus} from '../data/common'
 import {dayIDToDate} from '../util/time-util'
 import {MatSnackBar} from '@angular/material/snack-bar'
 import {TaskProblemType} from '../data/data-analyzer'
+import {MatMenuTrigger} from '@angular/material/menu'
+import {HomeComponent} from '../home/home.component'
 
 const DROP_THRESHOLDS_WITH_CHILD_DROP = [0.4, 0.666]
 
@@ -47,8 +49,14 @@ export class ItemComponent implements OnInit {
 
   @Input() allowChildDrop = false
 
+  @Input() canShowInItems = true
+  @Input() canShowInQueue = true
+
   @Output() bodyClicked = new EventEmitter()
   @Output() itemDropped = new EventEmitter<ItemDroppedEvent>()
+
+  // @ts-ignore
+  @ViewChild(MatMenuTrigger) contextMenu: MatMenuTrigger
 
   problemType = TaskProblemType
 
@@ -56,6 +64,7 @@ export class ItemComponent implements OnInit {
     private readonly dataStore: DataStore,
     private readonly zone: NgZone,
     private readonly snackBar: MatSnackBar,
+    private readonly home: HomeComponent,
   ) {
   }
 
@@ -67,7 +76,12 @@ export class ItemComponent implements OnInit {
   }
 
   getChipColor() {
-    return this.done ? '#00000000' : this.node.color.string()
+    return (this.done || this.deferred) ? '#00000000' : this.node.color.string()
+  }
+
+  get deferred() {
+    return this.node.effectiveDeferDate ?
+      (this.node.effectiveDeferDate > this.dataStore.getCurrentDayID()) : false
   }
 
   get done() {
@@ -213,5 +227,23 @@ export class ItemComponent implements OnInit {
     let value = this.node.effectiveDeferDate ?
       this.node.effectiveDeferDate - this.dataStore.getCurrentDayID() : 0
     return value >= 0 ? `+${value}` : `${value}`
+  }
+
+  onContextMenu(event: MouseEvent) {
+    event.preventDefault()
+    console.log('test')
+    this.contextMenu.openMenu()
+  }
+
+  showInItems() {
+    this.home.showInItems(this.node.id)
+  }
+
+  showInQueue() {
+    this.home.showInQueue(this.node.id)
+  }
+
+  delete() {
+    this.dataStore.removeItem(this.node.id)
   }
 }

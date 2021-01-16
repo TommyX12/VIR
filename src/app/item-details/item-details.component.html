@@ -115,7 +115,7 @@
         </mat-button-toggle>
       </mat-button-toggle-group>
     </div>
-    <div class="full-width-field bottom-margin" *ngIf="repeatEnabled">
+    <div class="full-width-field" *ngIf="repeatEnabled">
       <mat-checkbox name="repeatOnCompletion"
                     [(ngModel)]="draft.repeatOnCompletion">
         Repeat on completion
@@ -124,6 +124,26 @@
         help
       </mat-icon>
       <div class="hfill"></div>
+    </div>
+    <div class="full-width-field" *ngIf="repeatEnabled">
+      <mat-checkbox name="repeatDeferOffsetEnabled"
+                    [(ngModel)]="repeatDeferOffsetEnabled">
+        Auto set defer date on repeat
+      </mat-checkbox>
+      <mat-icon matTooltip="TODO" matTooltipPosition="above" class="help-icon">
+        help
+      </mat-icon>
+      <div class="hfill"></div>
+    </div>
+    <div class="full-width flex-row"
+         *ngIf="repeatEnabled && repeatDeferOffsetEnabled">
+      <mat-label class="right-margin">On repeat, set defer date to</mat-label>
+      <mat-form-field class="flex-child right-margin">
+        <mat-label></mat-label>
+        <input matInput name="cost" [(ngModel)]="repeatDeferOffsetString"
+               class="defer-offset-input"/>
+      </mat-form-field>
+      <mat-label>days before due</mat-label>
     </div>
     <div class="full-width-field">
       <mat-checkbox name="autoAdjustPriority"

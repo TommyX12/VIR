@@ -24,6 +24,9 @@
         <mat-icon>close</mat-icon>
       </button>
     </mat-form-field>
+    <mat-checkbox class="show-deferred-checkbox" [(ngModel)]="showDeferred">
+      Show Deferred
+    </mat-checkbox>
     <mat-button-toggle-group class="right-margin" [(ngModel)]="statusFilter"
                              appearance="legacy">
       <mat-button-toggle value="active">Active</mat-button-toggle>
@@ -56,6 +59,7 @@
            class="item">
         <app-item [node]="node" class="item-content"
                   [itemHeight]="itemHeight"
+                  [canShowInItems]="false"
                   [allowChildDrop]="true"
                   (itemDropped)="onItemDropped($event)"
                   (bodyClicked)="openDetails(node.id)">

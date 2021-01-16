@@ -47,6 +47,7 @@ export interface ItemNode {
 class ItemFilter {
   showCompleted = false
   showActive = true
+  showDeferred = true
   searchQuery: string = ''
   autocompleter?: DataStoreAutoCompleter
 
@@ -54,13 +55,23 @@ class ItemFilter {
     return this.searchQuery !== ''
   }
 
-  process(items: Item[]): Item[] {
+  process(items: Item[], dataStore: DataStore): Item[] {
+    const currentDate = dataStore.getCurrentDayID()
+
     if (!this.showCompleted) {
       items = items.filter(item => item.status !== ItemStatus.COMPLETED)
     }
 
     if (!this.showActive) {
       items = items.filter(item => item.status !== ItemStatus.ACTIVE)
+    }
+
+    if (!this.showDeferred) {
+      // TODO optimize this
+      items = items.filter(item => {
+        const deferDate = dataStore.getEffectiveDeferDate(item)
+        return deferDate === undefined || deferDate <= currentDate
+      })
     }
 
     if (this.autocompleter !== undefined && this.searchQuery !== '') {
@@ -261,6 +272,16 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.searchQueryValue.next(value)
   }
 
+  get showDeferred() {
+    return this.filter.showDeferred
+  }
+
+  set showDeferred(value: boolean) {
+    if (value === this.filter.showDeferred) return
+    this.filter.showDeferred = value
+    this.refresh()
+  }
+
   newItem(parentID?: ItemID) {
     const dialogRef = this.dialog.open(ItemDetailsComponent, {
       width: ItemDetailsComponent.DIALOG_WIDTH,
@@ -380,7 +401,7 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
     this.dataStore.state.items.forEach((item) => {
       items.push(item)
     })
-    const allowedItems = this.filter.process(items)
+    const allowedItems = this.filter.process(items, this.dataStore)
     this.allowedItemIDs = new Set(allowedItems.map(item => item.id))
     this.indirectAllowedItemIDs = new Set()
 

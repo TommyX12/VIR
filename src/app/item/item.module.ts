@@ -9,6 +9,7 @@ import {FormsModule} from '@angular/forms'
 import {SharedModule} from '../shared/shared.module'
 import {MatSnackBarModule} from '@angular/material/snack-bar'
 import {MatTooltipModule} from '@angular/material/tooltip'
+import {MatMenuModule} from '@angular/material/menu'
 
 
 @NgModule({
@@ -23,6 +24,7 @@ import {MatTooltipModule} from '@angular/material/tooltip'
     SharedModule,
     MatSnackBarModule,
     MatTooltipModule,
+    MatMenuModule,
   ],
   exports: [ItemComponent],
 })

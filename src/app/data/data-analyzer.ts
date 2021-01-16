@@ -654,16 +654,29 @@ export class DataAnalyzer {
       const subtreeItemInfo = this.dataStore.getRelativeEffectiveDateRange(
         subtreeItem, item.id)
 
-      const startOffset = subtreeItemInfo.deferDate === undefined ? undefined :
-        firstTask.end - subtreeItemInfo.deferDate
-      const endOffset = subtreeItemInfo.dueDate === undefined ? 0 :
-        firstTask.end - subtreeItemInfo.dueDate
+      if (subtreeItemID === item.id) { // Is root item
+        const startOffset = subtreeItem.repeatDeferOffset === undefined ?
+          undefined : subtreeItem.repeatDeferOffset
+        const endOffset = 0
 
-      subtreeInfo.push({
-        itemID: subtreeItemID,
-        startOffset,
-        endOffset,
-      })
+        subtreeInfo.push({
+          itemID: subtreeItemID,
+          startOffset,
+          endOffset,
+        })
+      } else {
+        const startOffset = subtreeItemInfo.deferDate === undefined ?
+          undefined :
+          firstTask.end - subtreeItemInfo.deferDate
+        const endOffset = subtreeItemInfo.dueDate === undefined ? 0 :
+          firstTask.end - subtreeItemInfo.dueDate
+
+        subtreeInfo.push({
+          itemID: subtreeItemID,
+          startOffset,
+          endOffset,
+        })
+      }
     }
 
     while (true) {
@@ -677,23 +690,22 @@ export class DataAnalyzer {
       const repetitionResults = generateSubtreeRepetition(
         nextTask, item.id, subtreeInfo)
 
-      if (subtreeInfo.length === 1) { // No children
-        getOrCreate(result, item.id, EMPTY_LIST_CREATOR).push(nextTask)
-      } else {
-        const numResults = repetitionResults.length
-        for (let i = 0; i < numResults; ++i) {
-          const repResult = repetitionResults[i]
-          const subtreeItem = this.dataStore.getItem(repResult.itemID)
-          if (subtreeItem === undefined) continue
-          getOrCreate(result, subtreeItem.id, EMPTY_LIST_CREATOR).push({
-            itemID: subtreeItem.id,
-            cost: subtreeItem.residualCost,
-            start: repResult.deferDate === undefined ? nextTask.start :
-              optionalClamp(repResult.deferDate, nextTask.start, nextTask.end),
-            end: repResult.dueDate === undefined ? nextTask.end :
-              optionalClamp(repResult.dueDate, nextTask.start, nextTask.end),
-          })
-        }
+      // if (subtreeInfo.length === 1) { // No children
+      //   getOrCreate(result, item.id, EMPTY_LIST_CREATOR).push(nextTask)
+      // }
+      const numResults = repetitionResults.length
+      for (let i = 0; i < numResults; ++i) {
+        const repResult = repetitionResults[i]
+        const subtreeItem = this.dataStore.getItem(repResult.itemID)
+        if (subtreeItem === undefined) continue
+        getOrCreate(result, subtreeItem.id, EMPTY_LIST_CREATOR).push({
+          itemID: subtreeItem.id,
+          cost: subtreeItem.residualCost,
+          start: repResult.deferDate === undefined ? nextTask.start :
+            optionalClamp(repResult.deferDate, nextTask.start, nextTask.end),
+          end: repResult.dueDate === undefined ? nextTask.end :
+            optionalClamp(repResult.dueDate, nextTask.start, nextTask.end),
+        })
       }
     }
   }

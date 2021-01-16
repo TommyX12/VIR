@@ -206,7 +206,15 @@ export function getSmartQueueInsertionIndex(queueInfo: QueueItemInfo[],
 
 export interface SubtreeRepetitionInfo {
   itemID: ItemID
+
+  /**
+   * The number of days to place defer date before root due date
+   */
   startOffset?: number
+
+  /**
+   * The number of days to place self due date before root due date
+   */
   endOffset?: number
 }
 
@@ -231,12 +239,16 @@ export function generateSubtreeRepetition(
     }
 
     if (info.itemID === rootItemID) { // This is the subtree root
+      // Only the startOffset is used
       result.push({
         itemID: info.itemID,
-        deferDate: nextTask.start,
+        deferDate: info.startOffset === undefined ? nextTask.end :
+          optionalClamp(
+            nextTask.end - info.startOffset, nextTask.start, nextTask.end),
         dueDate: nextTask.end,
       })
     } else {
+      // Simply shift defer and due date accordingly
       result.push({
         itemID: info.itemID,
         deferDate: info.startOffset === undefined ? undefined :
@@ -921,16 +933,29 @@ export class DataStore {
       if (subtreeItem === undefined) continue
 
       subtreeItem.status = ItemStatus.ACTIVE
-      const startOffset = subtreeItem.deferDate === undefined ? undefined :
-        firstTask.end - repeatOffset - subtreeItem.deferDate
-      const endOffset = subtreeItem.dueDate === undefined ? 0 :
-        firstTask.end - repeatOffset - subtreeItem.dueDate
 
-      subtreeInfo.push({
-        itemID: subtreeItemID,
-        startOffset,
-        endOffset,
-      })
+      if (subtreeItemID === rootItemID) { // Is root item
+        const startOffset = subtreeItem.repeatDeferOffset === undefined ?
+          undefined : subtreeItem.repeatDeferOffset
+        const endOffset = 0
+
+        subtreeInfo.push({
+          itemID: subtreeItemID,
+          startOffset,
+          endOffset,
+        })
+      } else {
+        const startOffset = subtreeItem.deferDate === undefined ? undefined :
+          firstTask.end - repeatOffset - subtreeItem.deferDate
+        const endOffset = subtreeItem.dueDate === undefined ? 0 :
+          firstTask.end - repeatOffset - subtreeItem.dueDate
+
+        subtreeInfo.push({
+          itemID: subtreeItemID,
+          startOffset,
+          endOffset,
+        })
+      }
     }
 
     const repetitionResults = generateSubtreeRepetition(
@@ -1277,6 +1302,14 @@ export class DataStore {
       throw {
         type: 'invalidDeferDateDueDate',
         message: 'Error: Defer date cannot be after due date',
+      }
+    }
+
+    if (draft.repeatDeferOffset !== undefined && (draft.repeatDeferOffset < 0 ||
+      !Number.isInteger(draft.repeatDeferOffset))) {
+      throw {
+        type: 'invalidRepeatDeferOffset',
+        message: 'Error: Invalid repeat defer offset',
       }
     }
   }
