@@ -16,6 +16,7 @@ import {DragDropModule} from '@angular/cdk/drag-drop'
 import {ScrollingModule} from '@angular/cdk/scrolling'
 import {MatButtonToggleModule} from '@angular/material/button-toggle'
 import {MatCheckboxModule} from '@angular/material/checkbox'
+import {GotoItemModule} from '../goto-item/goto-item.module'
 
 @NgModule({
   declarations: [ItemsComponent],
@@ -29,6 +30,7 @@ import {MatCheckboxModule} from '@angular/material/checkbox'
     ItemModule,
     MatTooltipModule,
     MatInputModule,
+    GotoItemModule,
     MatSlideToggleModule,
     MatDividerModule,
     FormsModule,

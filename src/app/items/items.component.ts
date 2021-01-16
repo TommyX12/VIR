@@ -23,6 +23,7 @@ import {
   ItemDroppedInsertionType,
 } from '../item/item.component'
 import {DataAnalyzer, TaskProblemType} from '../data/data-analyzer'
+import {GotoItemComponent} from '../goto-item/goto-item.component'
 
 const SEARCH_IDLE_DELAY = 200
 
@@ -506,5 +507,21 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
           draft, {anchor: receiverItemID, insert})
       }
     }
+  }
+
+  gotoItem() {
+    const dialogRef = this.dialog.open(GotoItemComponent, {
+      width: GotoItemComponent.DIALOG_WIDTH,
+      data: {},
+      hasBackdrop: true,
+      disableClose: false,
+      autoFocus: false,
+    })
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result !== undefined) {
+        this.locateNodeByID(result)
+      }
+    })
   }
 }

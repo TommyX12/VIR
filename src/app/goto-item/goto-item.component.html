@@ -1,0 +1,35 @@
+<div class="header">
+  <b>Goto item</b>
+  <div class="hfill"></div>
+  <button mat-icon-button (click)="close()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+<div class="content">
+  <form class="form" (keydown)="onFormKeyDown($event)">
+    <div class="full-width-field">
+      <mat-form-field class="flex-child">
+        <mat-label>Item</mat-label>
+        <input matInput #itemInput name="item" [(ngModel)]="itemKey"
+               [matAutocomplete]="auto"/>
+        <mat-autocomplete autoActiveFirstOption #auto="matAutocomplete">
+          <mat-option *ngFor="let option of filteredKeys | async"
+                      [value]="option">
+            {{option}}
+          </mat-option>
+        </mat-autocomplete>
+        <button type="button" *ngIf="itemKey !== ''" matSuffix
+                mat-icon-button (click)="itemKey=''">
+          <mat-icon>close</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+  </form>
+</div>
+<div class="footer">
+  <div class="hfill"></div>
+  <p class="key-hint-text right-margin">ctrl + enter</p>
+  <button mat-raised-button (click)="go()" color="primary">
+    Go
+  </button>
+</div>

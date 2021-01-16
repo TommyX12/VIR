@@ -1,5 +1,9 @@
 <div class="container">
   <div class="filter-bar">
+    <button mat-stroked-button (click)="gotoItem()" class="right-margin">
+      <mat-icon class="right-margin">near_me</mat-icon>
+      Goto Item
+    </button>
     <mat-icon class="right-margin">search</mat-icon>
     <mat-form-field class="flex-child right-margin">
       <input matInput class="search-input" [(ngModel)]="searchQuery"/>

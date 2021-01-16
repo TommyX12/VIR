@@ -21,6 +21,7 @@ import {
 } from '../item/item.component'
 import {ItemNode} from '../items/items.component'
 import {DataAnalyzer} from '../data/data-analyzer'
+import {GotoItemComponent} from '../goto-item/goto-item.component'
 
 const SEARCH_IDLE_DELAY = 200
 
@@ -283,5 +284,21 @@ export class QueueComponent implements OnInit, OnDestroy, AfterViewInit {
 
   addItemAfter(node: ItemNode) {
     this.newItem(node.id)
+  }
+
+  gotoItem() {
+    const dialogRef = this.dialog.open(GotoItemComponent, {
+      width: GotoItemComponent.DIALOG_WIDTH,
+      data: {},
+      hasBackdrop: true,
+      disableClose: false,
+      autoFocus: false,
+    })
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result !== undefined) {
+        this.locateNodeByID(result)
+      }
+    })
   }
 }
