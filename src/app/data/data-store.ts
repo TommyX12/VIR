@@ -597,11 +597,11 @@ export class DataStoreAutoCompleter {
         if (pattern.charAt(a) === key.charAt(b)) {
           ++a
           if (lastMatchedB === -1) {
-            ++forwardScore
+            forwardScore += 2.0
           } else {
-            forwardScore += 1.0 / (b - lastMatchedB)
-            lastMatchedB = b
+            forwardScore += 1.0 + (1.0 / (b - lastMatchedB))
           }
+          lastMatchedB = b
         }
         ++b
       }
@@ -616,11 +616,11 @@ export class DataStoreAutoCompleter {
         if (pattern.charAt(a) === key.charAt(b)) {
           --a
           if (lastMatchedB === -1) {
-            ++backwardScore
+            backwardScore += 2.0
           } else {
-            backwardScore += 1.0 / (lastMatchedB - b)
-            lastMatchedB = b
+            backwardScore += 1.0 + (1.0 / (lastMatchedB - b))
           }
+          lastMatchedB = b
         }
         --b
       }
@@ -648,15 +648,11 @@ export class DataStoreAutoCompleter {
   }
 
   queryKeys(pattern: string, numCandidates: number = 0) {
-    return this.query(pattern, numCandidates).map((entry) => {
-      return entry.key
-    })
+    return this.query(pattern, numCandidates).map(entry => entry.key)
   }
 
   queryIDs(pattern: string, numCandidates: number = 0) {
-    return this.query(pattern, numCandidates).map((entry) => {
-      return entry.id
-    })
+    return this.query(pattern, numCandidates).map(entry => entry.id)
   }
 
   keyToID(key: string) {
