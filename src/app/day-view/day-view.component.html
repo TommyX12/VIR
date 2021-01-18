@@ -79,8 +79,9 @@
           </span>
           <div class="hfill"></div>
           <span class="right-margin">{{session.count}}</span>
-          <button mat-icon-button matTooltip="Complete One"
-                  matTooltipPosition="above" *ngIf="!session.done"
+          <button mat-icon-button
+                  [matTooltip]="session.done ? 'Complete One more' : 'Complete One'"
+                  matTooltipPosition="above"
                   (click)="completeOne(session)">
             <mat-icon>done</mat-icon>
           </button>

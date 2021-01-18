@@ -300,6 +300,8 @@ export class ItemsComponent implements OnInit, OnDestroy, AfterViewInit {
 
   openDetails(id: ItemID) {
     const item = this.dataStore.getItem(id)
+    if (item === undefined) return
+
     const dialogRef = this.dialog.open(ItemDetailsComponent, {
       width: ItemDetailsComponent.DIALOG_WIDTH,
       data: {item},

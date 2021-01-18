@@ -112,6 +112,8 @@ export class ItemDetailsComponent implements AfterViewInit {
   repeatTypeOptions = REPEAT_TYPE_OPTIONS
   repeatDayOfWeekOptions = REPEAT_DAY_OF_WEEK_OPTIONS
 
+  cost?: number
+
   hasChildren: boolean
 
   constructor(
@@ -132,6 +134,7 @@ export class ItemDetailsComponent implements AfterViewInit {
       this.hasChildren = false
     } else {
       this.draft = item.toDraft()
+      this.cost = item.cost === 0 ? undefined : item.cost
       this.isAddingNewItem = false
       this.hasChildren = item.childrenIDs.length > 0
     }
@@ -193,16 +196,23 @@ export class ItemDetailsComponent implements AfterViewInit {
     this.draft.status = value ? ItemStatus.COMPLETED : ItemStatus.ACTIVE
   }
 
-  get cost() {
-    return this.draft.cost.toString()
+  get costString() {
+    if (this.cost === undefined) {
+      return ''
+    }
+    return this.cost.toString()
   }
 
-  set cost(value: string) {
+  set costString(value: string) {
+    if (value === '') {
+      this.cost = undefined
+      return
+    }
     let v = Number(value)
     if (isNaN(v) || v < 0) {
       v = 0
     }
-    this.draft.cost = v
+    this.cost = v
   }
 
   get parentItemKey() {
@@ -317,6 +327,8 @@ export class ItemDetailsComponent implements AfterViewInit {
   save() {
     // Validation
     // TODO refactor: move this
+    this.draft.cost = this.cost === undefined ? 0 : this.cost
+
     let parentID: ItemID | undefined = undefined
     if (this.parentItemKey !== '') {
       parentID = (this.originalParentItemKey !== undefined &&

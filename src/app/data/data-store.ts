@@ -242,7 +242,7 @@ export function generateSubtreeRepetition(
       // Only the startOffset is used
       result.push({
         itemID: info.itemID,
-        deferDate: info.startOffset === undefined ? nextTask.end :
+        deferDate: info.startOffset === undefined ? nextTask.start :
           optionalClamp(
             nextTask.end - info.startOffset, nextTask.start, nextTask.end),
         dueDate: nextTask.end,

@@ -197,13 +197,24 @@ export class ItemComponent implements OnInit {
   }
 
   getCostHtml() {
-    if (this.node.effectiveProgress > 0) {
-      if (this.node.effectiveProgress >= this.node.effectiveCost) {
-        return `<b>${this.node.effectiveProgress} / ${this.node.effectiveCost}</b>`
+    if (this.node.effectiveCost > 0) {
+      if (this.node.effectiveProgress > 0) {
+        if (this.node.effectiveProgress >= this.node.effectiveCost) {
+          return `<b>${this.node.effectiveProgress} / ${this.node.effectiveCost}</b>`
+        }
+        return `<b>${this.node.effectiveProgress}</b> / ${this.node.effectiveCost}`
       }
-      return `<b>${this.node.effectiveProgress}</b> / ${this.node.effectiveCost}`
+      return `${this.node.effectiveCost}`
+    } else {
+      if (this.node.effectiveProgress > 0) {
+        return `<b>${this.node.effectiveProgress}</b>`
+      }
+      return ``
     }
-    return `${this.node.effectiveCost}`
+  }
+
+  get shouldDisplaySessionChip() {
+    return this.node.effectiveProgress > 0 || this.node.effectiveCost > 0
   }
 
   getEstimatedDoneDate() {

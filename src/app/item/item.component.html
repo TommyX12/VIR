@@ -74,7 +74,7 @@
       </span>
       <span class="app-single-line-text cost-text"
             [innerHTML]="getCostHtml()"></span>
-      <app-session-chip></app-session-chip>
+      <app-session-chip *ngIf="shouldDisplaySessionChip"></app-session-chip>
     </div>
     <ng-content select="[suffix]"></ng-content>
   </div>

@@ -23,7 +23,8 @@ import {
 import {arrayToMap} from '../util/util'
 import {dayIDToDate, getShortDateDisplayName} from '../util/time-util'
 import {HomeComponent} from '../home/home.component'
-import {ItemID} from '../data/common'
+import {DayID, ItemID} from '../data/common'
+import {ItemDetailsComponent} from '../item-details/item-details.component'
 
 const SEARCH_IDLE_DELAY = 200
 
@@ -66,6 +67,19 @@ const DISPLAY_HTML_GENERATORS: {
       const item = dataStore.getItem(alert.data.itemID)
       if (item === undefined) return ''
       return `Item <b>${item.name}</b> has completed its cost.`
+    },
+  },
+  {
+    type: 'itemOverdue',
+    generator(alert, dataStore): string {
+      const dueDate: DayID = alert.data.dueDate
+      const item = dataStore.getItem(alert.data.itemID)
+      if (item === undefined) return ''
+      if (dueDate === undefined) {
+        return `Item <b>${item.name}</b> is overdue.`
+      }
+      return `Item <b>${item.name}</b> (due ${getShortDateDisplayName(
+        dayIDToDate(dueDate))}) is overdue.`
     },
   },
 ]
@@ -124,6 +138,17 @@ export class AlertListComponent implements OnInit, OnDestroy, AfterViewInit {
       },
       showItemInQueue: (itemID: ItemID) => {
         this.home.showInQueue(itemID)
+      },
+      editItem: (itemID: ItemID) => {
+        const item = this.dataStore.getItem(itemID)
+        if (item === undefined) return
+        const dialogRef = this.dialog.open(ItemDetailsComponent, {
+          width: ItemDetailsComponent.DIALOG_WIDTH,
+          data: {item},
+          hasBackdrop: true,
+          disableClose: false,
+          autoFocus: false,
+        })
       },
       dataStore: this.dataStore,
     }

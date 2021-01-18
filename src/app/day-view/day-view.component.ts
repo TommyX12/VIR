@@ -375,7 +375,9 @@ export class DayViewComponent implements OnInit, OnDestroy {
 
   completeOne(session: Session) {
     this.dataStore.batchEdit(it => {
-      it.removeSession(this.dayID, session.type, session.item.id, 1)
+      if (session.type !== SessionType.COMPLETED) {
+        it.removeSession(this.dayID, session.type, session.item.id, 1)
+      }
       it.addSession(this.dayID, SessionType.COMPLETED, session.item.id, 1)
     })
   }

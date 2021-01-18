@@ -19,7 +19,11 @@
     <div class="full-width flex-row">
       <mat-form-field class="flex-child">
         <mat-label>Cost (Estimated sessions needed)</mat-label>
-        <input matInput name="cost" [(ngModel)]="cost"/>
+        <input matInput name="cost" [(ngModel)]="costString"/>
+        <button type="button" *ngIf="costString !== ''" matSuffix
+                mat-icon-button (click)="costString=''">
+          <mat-icon>close</mat-icon>
+        </button>
       </mat-form-field>
     </div>
     <div class="full-width-field smaller-text" *ngIf="shouldShowCostWarning">

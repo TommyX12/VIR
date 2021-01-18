@@ -7,14 +7,14 @@
     </mat-icon>
   </button>
   <div class="flex-row" *ngIf="timerEnabled">
-    <button mat-icon-button (click)="reset()" [disabled]="!started"
-            [matTooltip]="running ? 'Restart' : 'Stop'">
+    <button mat-icon-button (click)="reset()" [disabled]="!started">
+      <!--      [matTooltip]="running ? 'Restart' : 'Stop'"-->
       <mat-icon>
         {{running ? 'replay' : 'stop'}}
       </mat-icon>
     </button>
-    <button mat-icon-button (click)="startOrPause()"
-            [matTooltip]="running ? 'Pause' : 'Start'">
+    <button mat-icon-button (click)="startOrPause()">
+      <!--      [matTooltip]="running ? 'Pause' : 'Start'"-->
       <mat-icon>
         {{running ? 'pause' : 'play_arrow'}}
       </mat-icon>

@@ -174,9 +174,11 @@ export class GreedyProjectionStrategy extends ProjectionStrategy {
             auxiliaryInfoMap, endpoint.taskInfo, auxiliaryInfoCreator).deleted =
             true
         } else {
-          if (!this.backward || endpoint.dayID <= lastDayID) {
+          if (!this.backward || endpoint.dayID - 1 <= lastDayID) {
             // When scheduling backward, keep only tasks that are due within
             // the scheduling range
+            // Keep in mind that the end endpoint has dayID being 1 more than
+            // actual due date
             q.queue(endpoint.taskInfo)
           }
         }
@@ -266,6 +268,7 @@ export interface AlertActionContext {
   showItemInItems?: (itemID: ItemID) => void
   showItemInQueue?: (itemID: ItemID) => void
   dataStore?: DataStore
+  editItem?: (itemID: ItemID) => void
 }
 
 export interface AlertAction {
@@ -322,6 +325,18 @@ const MARK_ITEM_COMPLETE_ACTION: AlertAction = {
     const draft = item.toDraft()
     draft.status = ItemStatus.COMPLETED
     dataStore.updateItem(draft)
+  },
+}
+
+const EDIT_ITEM_ACTION: AlertAction = {
+  displayName: 'Edit Item',
+  isSupported(ctx: AlertActionContext) {
+    return ctx.editItem !== undefined
+  },
+  execute(data: any, ctx: AlertActionContext) {
+    const itemID = data.itemID
+    if (itemID === undefined) return
+    ctx.editItem!(itemID)
   },
 }
 
@@ -454,7 +469,10 @@ export class DataAnalyzer {
 
     // Compute alerts
 
-    this.computeAlerts(this.taskProblems, this.effectiveProgress)
+    this.computeAlerts(
+      this.taskProblems, effectiveInfoCache, this.effectiveProgress,
+      currentDate,
+    )
 
     // Finalize
 
@@ -1073,7 +1091,11 @@ export class DataAnalyzer {
   }
 
   private computeAlerts(taskProblems: Map<ItemID, TaskProblem[]>,
-                        effectiveProgress: Map<ItemID, number>) {
+                        effectiveInfoCache: Map<ItemID, EffectiveItemInfo>,
+                        effectiveProgress: Map<ItemID, number>,
+                        currentDate: DayID) {
+    // Task problems
+
     taskProblems.forEach(problems => {
       problems.forEach(problem => {
         let alertType: string | undefined = undefined
@@ -1096,6 +1118,7 @@ export class DataAnalyzer {
             task: problem.task,
           },
           actions: [
+            EDIT_ITEM_ACTION,
             SHOW_IN_ITEMS_ACTION,
             SHOW_IN_QUEUE_ACTION,
           ],
@@ -1104,24 +1127,50 @@ export class DataAnalyzer {
       })
     })
 
+    // Item cost completed or overdue
+
     this.dataStore.state.items.forEach(item => {
       const progress = effectiveProgress.get(item.id) || 0
-      if (item.status !== ItemStatus.COMPLETED && progress >=
-        item.effectiveCost) {
-        const alert: Alert = {
-          color: 'primary',
-          icon: 'check_circle_outline',
-          type: 'itemCostCompleted',
-          data: {
-            itemID: item.id,
-          },
-          actions: [
-            MARK_ITEM_COMPLETE_ACTION,
-            SHOW_IN_ITEMS_ACTION,
-            SHOW_IN_QUEUE_ACTION,
-          ],
+      if (item.status !== ItemStatus.COMPLETED) {
+        if (item.effectiveCost > 0 && progress >= item.effectiveCost) {
+          const alert: Alert = {
+            color: 'primary',
+            icon: 'check_circle_outline',
+            type: 'itemCostCompleted',
+            data: {
+              itemID: item.id,
+            },
+            actions: [
+              MARK_ITEM_COMPLETE_ACTION,
+              EDIT_ITEM_ACTION,
+              SHOW_IN_ITEMS_ACTION,
+              SHOW_IN_QUEUE_ACTION,
+            ],
+          }
+          this.alerts.push(alert)
         }
-        this.alerts.push(alert)
+
+        const info = effectiveInfoCache.get(item.id)
+
+        if (info !== undefined && info.dueDate !== undefined && info.dueDate <
+          currentDate) {
+          const alert: Alert = {
+            color: 'warn',
+            icon: 'alarm',
+            type: 'itemOverdue',
+            data: {
+              itemID: item.id,
+              dueDate: info.dueDate,
+            },
+            actions: [
+              MARK_ITEM_COMPLETE_ACTION,
+              EDIT_ITEM_ACTION,
+              SHOW_IN_ITEMS_ACTION,
+              SHOW_IN_QUEUE_ACTION,
+            ],
+          }
+          this.alerts.push(alert)
+        }
       }
     })
   }
