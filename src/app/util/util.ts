@@ -57,10 +57,11 @@ export function clamp(value: number, low: number, high: number) {
   return Math.min(Math.max(value, low), high)
 }
 
-export function getOrCreate<K, V>(map: Map<K, V>, key: K, creator: () => V) {
+export function getOrCreate<K, V>(map: Map<K, V>, key: K,
+                                  creator: (key: K) => V) {
   let result = map.get(key)
   if (result === undefined) {
-    result = creator()
+    result = creator(key)
     map.set(key, result)
   }
   return result

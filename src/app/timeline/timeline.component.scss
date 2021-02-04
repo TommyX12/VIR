@@ -83,6 +83,10 @@
   border: 1px solid #88888866;
 }
 
+.left-margin {
+  margin-left: 15px;
+}
+
 .calendar-row {
   width: 100%;
   display: flex;
@@ -102,9 +106,13 @@
 }
 
 .free-time-label {
-  font-size: 0.9em;
+  font-size: 0.85em;
   opacity: 0.8;
   margin-right: 15px;
+}
+
+.completion-text {
+  color: #27b727;
 }
 
 .free-time-progress-bar {

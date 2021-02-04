@@ -224,13 +224,17 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   getFreeTimeHtml() {
-    const info = this.dataAnalyzer.getFreeTimeEstimate()
+    const info = this.dataAnalyzer.getFreeTimeInfo()
     return `<b>${info.freeQuota}</b> / ${info.totalQuota}`
   }
 
   get freeTimeDepleted() {
-    const info = this.dataAnalyzer.getFreeTimeEstimate()
+    const info = this.dataAnalyzer.getFreeTimeInfo()
     return info.freeQuota <= 0
+  }
+
+  get lastWeekDailyCompletion() {
+    return this.dataAnalyzer.getFreeTimeInfo().lastWeekDailyCompletion
   }
 
   newItem() {
@@ -247,7 +251,7 @@ export class TimelineComponent implements OnInit, OnDestroy {
   }
 
   getFreeTimeProgressValue() {
-    const info = this.dataAnalyzer.getFreeTimeEstimate()
+    const info = this.dataAnalyzer.getFreeTimeInfo()
     if (info.totalQuota === 0) return 0
     return clamp(info.freeQuota / info.totalQuota, 0, 1)
   }

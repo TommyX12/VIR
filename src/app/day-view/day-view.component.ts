@@ -28,6 +28,7 @@ import {MatSnackBar} from '@angular/material/snack-bar'
 import {QuickQuotaEditComponent} from '../quick-quota-edit/quick-quota-edit.component'
 
 interface Session {
+  isOnDue: boolean
   canItemRepeat: boolean
   scheduled: boolean
   projected: boolean
@@ -296,6 +297,7 @@ export class DayViewComponent implements OnInit, OnDestroy {
         const item = this.dataStore.getItem(itemID)
         if (item !== undefined) {
           getOrCreate(this.sessions, type, () => []).push({
+            isOnDue: this.dataAnalyzer.isItemDueOn(item.id, this.dayID),
             canItemRepeat: item.repeat !== undefined &&
               !this.dataStore.getHasAncestorRepeat(item),
             scheduled: type === SessionType.SCHEDULED,
@@ -324,6 +326,7 @@ export class DayViewComponent implements OnInit, OnDestroy {
         const item = this.dataStore.getItem(itemID)
         if (item !== undefined) {
           getOrCreate(this.sessions, SessionType.PROJECTED, () => []).push({
+            isOnDue: this.dataAnalyzer.isItemDueOn(item.id, this.dayID),
             canItemRepeat: item.repeat !== undefined &&
               !this.dataStore.getHasAncestorRepeat(item),
             scheduled: false,

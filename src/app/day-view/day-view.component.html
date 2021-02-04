@@ -73,6 +73,12 @@
               {{getCheckBoxIcon(session)}}
             </mat-icon>
           </button>
+          <mat-icon *ngIf="session.isOnDue" inline
+                    matTooltip="On Due Date"
+                    matTooltipPosition="above"
+                    class="item-icon warning-icon">
+            priority_high
+          </mat-icon>
           <span class="left-margin right-margin app-single-line-text"
                 [class.faded]="session.done || session.itemDone">
             {{session.item.name}}

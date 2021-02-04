@@ -46,6 +46,13 @@
       <div class="free-time-progress-bar-fill"
            [style.width]="getFreeTimeProgressValue() * 100 + '%'"></div>
     </div>
+    <p class="left-margin free-time-label">Last week daily completion:</p>
+    <p class="app-single-line-text">
+      <b class="completion-text">
+        {{lastWeekDailyCompletion | number:'1.0-1'}}
+      </b>
+    </p>
+    <app-session-chip></app-session-chip>
     <div class="hfill"></div>
     <mat-slide-toggle color="warn" [(ngModel)]="useBackwardStrategy"
                       matTooltip="View Late Strategy"

@@ -53,6 +53,11 @@
       <mat-icon *ngIf="session.itemDone" inline
                 class="item-icon">check_circle
       </mat-icon>
+      <mat-icon *ngIf="session.isOnDue" inline
+                matTooltip="On Due Date"
+                matTooltipPosition="above"
+                class="item-icon warning-icon">priority_high
+      </mat-icon>
       <span class="app-single-line-text"
             [class.faded]="session.done || session.itemDone">
         {{session.item.name}}

@@ -232,9 +232,10 @@ export enum AnalyzerProjectionStrategy {
   BACKWARD,
 }
 
-export class FreeTimeEstimate {
+export class FreeTimeInfo {
   totalQuota = 0
   freeQuota = 0
+  lastWeekDailyCompletion = 0
 
   constructor() {
   }
@@ -242,6 +243,7 @@ export class FreeTimeEstimate {
   clear() {
     this.totalQuota = 0
     this.freeQuota = 0
+    this.lastWeekDailyCompletion = 0
   }
 }
 
@@ -363,9 +365,10 @@ export class DataAnalyzer {
   private projectedSessions = new Map<AnalyzerProjectionStrategy, Map<DayID, Map<ItemID, number>>>()
   private estimatedDoneDates = new Map<ItemID, DayID>()
   private effectiveProgress = new Map<ItemID, number>()
-  private freeTimeEstimate = new FreeTimeEstimate()
+  private freeTimeInfo = new FreeTimeInfo()
   // Guaranteed to be sorted by task order
   private taskProblems = new Map<ItemID, TaskProblem[]>()
+  private itemDueDateMap = new Map<DayID, Set<ItemID>>()
   private alerts: Alert[] = []
 
   constructor(
@@ -398,8 +401,9 @@ export class DataAnalyzer {
     this.projectedSessions.clear()
     this.estimatedDoneDates.clear()
     this.effectiveProgress.clear()
-    this.freeTimeEstimate.clear()
+    this.freeTimeInfo.clear()
     this.taskProblems.clear()
+    this.itemDueDateMap.clear()
     this.alerts = []
   }
 
@@ -435,6 +439,8 @@ export class DataAnalyzer {
       }
     })
 
+    this.updateDueDates(tasks)
+
     // console.log(tasks) // TODO remove me
 
     // Track progress. Modifies tasks in-place
@@ -461,10 +467,10 @@ export class DataAnalyzer {
 
     // Compute free time
 
-    this.computeFreeTimeEstimate(
+    this.computeFreeTimeInfo(
       this.projectedSessions.get(AnalyzerProjectionStrategy.BACKWARD)!,
       quotaInfo, sessionSlots, currentDate, maxProjectionEndDate,
-      this.freeTimeEstimate,
+      this.freeTimeInfo,
     )
 
     // Compute alerts
@@ -765,8 +771,8 @@ export class DataAnalyzer {
     return this.estimatedDoneDates.get(itemID)
   }
 
-  getFreeTimeEstimate() {
-    return this.freeTimeEstimate
+  getFreeTimeInfo() {
+    return this.freeTimeInfo
   }
 
   getTaskProblems(itemID: ItemID): TaskProblem[] | undefined {
@@ -788,6 +794,12 @@ export class DataAnalyzer {
       return []
     }
     return this.alerts
+  }
+
+  isItemDueOn(itemID: ItemID, dayID: DayID) {
+    const set = this.itemDueDateMap.get(dayID)
+    if (set === undefined) return false
+    return set.has(itemID)
   }
 
   private generateProjections(itemIDToTasks: Map<ItemID, Task[]>,
@@ -1035,12 +1047,12 @@ export class DataAnalyzer {
     return result
   }
 
-  private computeFreeTimeEstimate(projectedSessions: Map<DayID, Map<ItemID, number>>,
-                                  quotaInfo: Map<DayID, number>,
-                                  sessionSlots: Map<DayID, number>,
-                                  currentDate: DayID,
-                                  maxProjectionEndDate: DayID,
-                                  result: FreeTimeEstimate) {
+  private computeFreeTimeInfo(projectedSessions: Map<DayID, Map<ItemID, number>>,
+                              quotaInfo: Map<DayID, number>,
+                              sessionSlots: Map<DayID, number>,
+                              currentDate: DayID,
+                              maxProjectionEndDate: DayID,
+                              result: FreeTimeInfo) {
     const rangeStart = currentDate
     // TODO change the hard-coded 30 days
     const rangeEnd = Math.min(rangeStart + 29, maxProjectionEndDate)
@@ -1057,6 +1069,20 @@ export class DataAnalyzer {
       }
       result.freeQuota += Math.max(0, quota - usedQuota)
     }
+
+    // TODO change the hard-coded 7 days
+    const pastDays = 7
+    result.lastWeekDailyCompletion = 0
+    for (let i = 1; i <= pastDays; ++i) {
+      const d = currentDate - i
+      const dayData = this.dataStore.getDayData(d)
+      dayData.sessions.forEach(sessions => {
+        sessions.forEach(count => {
+          result.lastWeekDailyCompletion += count
+        })
+      })
+    }
+    result.lastWeekDailyCompletion /= pastDays
   }
 
   private computeEffectiveProgress(itemIDToTasks: Map<ItemID, Task[]>) {
@@ -1171,6 +1197,15 @@ export class DataAnalyzer {
           }
           this.alerts.push(alert)
         }
+      }
+    })
+  }
+
+  private updateDueDates(tasks: Task[]) {
+    tasks.forEach(task => {
+      if (task.end !== undefined) {
+        getOrCreate(this.itemDueDateMap, task.end, () => new Set<ItemID>())
+          .add(task.itemID)
       }
     })
   }

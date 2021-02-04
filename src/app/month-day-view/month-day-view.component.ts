@@ -19,6 +19,7 @@ import {QuickQuotaEditComponent} from '../quick-quota-edit/quick-quota-edit.comp
 import {AnalyzerProjectionStrategy, DataAnalyzer} from '../data/data-analyzer'
 
 interface Session {
+  isOnDue: boolean
   scheduled: boolean
   projected: boolean
   type: SessionType
@@ -84,6 +85,7 @@ export class MonthDayViewComponent implements OnInit {
         const item = this.dataStore.getItem(itemID)
         if (item !== undefined) {
           this.sessions.push({
+            isOnDue: this.dataAnalyzer.isItemDueOn(item.id, this.dayID),
             scheduled: type === SessionType.SCHEDULED,
             projected: type === SessionType.PROJECTED,
             type,
@@ -111,6 +113,7 @@ export class MonthDayViewComponent implements OnInit {
         const item = this.dataStore.getItem(itemID)
         if (item !== undefined) {
           this.sessions.push({
+            isOnDue: this.dataAnalyzer.isItemDueOn(item.id, this.dayID),
             scheduled: false,
             projected: true,
             type: SessionType.PROJECTED,
