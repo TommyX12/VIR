@@ -38,6 +38,8 @@ interface Session {
   color: Color
   done: boolean
   itemDone: boolean
+  effectiveProgress?: number
+  effectiveCost?: number
 }
 
 interface SessionGroup {
@@ -292,23 +294,41 @@ export class DayViewComponent implements OnInit, OnDestroy {
     const dayData = this.dataStore.getDayData(this.dayID)
     this.totalCount = 0
     this.doneCount = 0
+
+    let makeSession = (item: Item, type: SessionType, count: number) => {
+      const tasks = this.dataAnalyzer.getTasks(item.id)
+      const firstTask = tasks === undefined ? undefined : tasks[0]
+      let effectiveCost: number | undefined = undefined
+      let effectiveProgress: number | undefined = undefined
+      if (firstTask !== undefined &&
+        (firstTask.start === undefined || firstTask.start <= this.dayID) &&
+        (firstTask.end === undefined || firstTask.end >= this.dayID)) {
+        effectiveCost = item.effectiveCost
+        effectiveProgress = this.dataAnalyzer.getEffectiveProgress(item.id)
+      }
+      return {
+        isOnDue: this.dataAnalyzer.isItemDueOn(item.id, this.dayID),
+        canItemRepeat: item.repeat !== undefined &&
+          !this.dataStore.getHasAncestorRepeat(item),
+        scheduled: type === SessionType.SCHEDULED,
+        projected: type === SessionType.PROJECTED,
+        type,
+        item,
+        count,
+        color: this.dataStore.getItemColor(item),
+        done: type === SessionType.COMPLETED,
+        itemDone: item.status === ItemStatus.COMPLETED,
+        effectiveCost,
+        effectiveProgress,
+      }
+    }
+
     dayData.sessions.forEach((sessions, type) => {
       sessions.forEach((count, itemID) => {
         const item = this.dataStore.getItem(itemID)
         if (item !== undefined) {
-          getOrCreate(this.sessions, type, () => []).push({
-            isOnDue: this.dataAnalyzer.isItemDueOn(item.id, this.dayID),
-            canItemRepeat: item.repeat !== undefined &&
-              !this.dataStore.getHasAncestorRepeat(item),
-            scheduled: type === SessionType.SCHEDULED,
-            projected: type === SessionType.PROJECTED,
-            type,
-            item,
-            count,
-            color: this.dataStore.getItemColor(item),
-            done: type === SessionType.COMPLETED,
-            itemDone: item.status === ItemStatus.COMPLETED,
-          })
+          getOrCreate(this.sessions, type, () => [])
+            .push(makeSession(item, type, count))
 
           if (type === SessionType.COMPLETED) {
             this.doneCount += count
@@ -325,19 +345,8 @@ export class DayViewComponent implements OnInit, OnDestroy {
       projections.forEach((count, itemID) => {
         const item = this.dataStore.getItem(itemID)
         if (item !== undefined) {
-          getOrCreate(this.sessions, SessionType.PROJECTED, () => []).push({
-            isOnDue: this.dataAnalyzer.isItemDueOn(item.id, this.dayID),
-            canItemRepeat: item.repeat !== undefined &&
-              !this.dataStore.getHasAncestorRepeat(item),
-            scheduled: false,
-            projected: true,
-            type: SessionType.PROJECTED,
-            item,
-            count,
-            color: this.dataStore.getItemColor(item),
-            done: false,
-            itemDone: item.status === ItemStatus.COMPLETED,
-          })
+          getOrCreate(this.sessions, SessionType.PROJECTED, () => [])
+            .push(makeSession(item, SessionType.PROJECTED, count))
 
           this.totalCount += count
         }
@@ -440,5 +449,29 @@ export class DayViewComponent implements OnInit, OnDestroy {
   onCompleteItemButtonClicked(event: MouseEvent, session: Session) {
     this.toggleItemDone(session)
     event.preventDefault()
+  }
+
+  shouldDisplayProgress(session: Session) {
+    return session.effectiveProgress !== undefined || session.effectiveCost !==
+      undefined
+  }
+
+  getProgressHtml(session: Session) {
+    if (session.effectiveProgress !== undefined &&
+      session.effectiveProgress !== 0) {
+      if (session.effectiveCost !== undefined && session.effectiveCost !== 0) {
+        if (session.effectiveProgress >= session.effectiveCost) {
+          return `<b>${session.effectiveProgress} / ${session.effectiveCost}</b>`
+        } else {
+          return `<b>${session.effectiveProgress}</b> / ${session.effectiveCost}`
+        }
+      } else {
+        return `<b>${session.effectiveProgress}</b>`
+      }
+    } else {
+      if (session.effectiveCost !== undefined && session.effectiveCost !== 0) {
+        return `${session.effectiveCost}`
+      }
+    }
   }
 }

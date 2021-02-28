@@ -207,10 +207,26 @@
   margin-bottom: 10px;
 }
 
+.session-name {
+  font-size: 0.95em;
+}
+
 .left-margin {
   margin-left: 5px;
 }
 
 .date-picker-input {
   font-size: 0.75em;
+}
+
+.progress-chip {
+  font-size: 0.85em;
+  padding: 2px 4px;
+  border-radius: 5px;
+  background-color: #88888866;
+  margin-right: 10px;
+}
+
+.progress-chip ::ng-deep b {
+  color: #3cb73c;
 }

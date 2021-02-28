@@ -32,3 +32,8 @@ html, body {
   min-width: 0;
   overflow: hidden;
 }
+
+.app-single-line-text-no-shrink {
+  white-space: nowrap;
+  overflow: visible;
+}

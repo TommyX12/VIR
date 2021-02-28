@@ -79,11 +79,17 @@
                     class="item-icon warning-icon">
             priority_high
           </mat-icon>
-          <span class="left-margin right-margin app-single-line-text"
-                [class.faded]="session.done || session.itemDone">
+          <span
+            class="left-margin right-margin app-single-line-text session-name"
+            [class.faded]="session.done || session.itemDone">
             {{session.item.name}}
           </span>
           <div class="hfill"></div>
+          <span class="progress-chip app-single-line-text-no-shrink"
+                matTooltipPosition="above"
+                matTooltip="Progress and Cost"
+                *ngIf="shouldDisplayProgress(session)"
+                [innerHTML]="getProgressHtml(session)"></span>
           <span class="right-margin">{{session.count}}</span>
           <button mat-icon-button
                   [matTooltip]="session.done ? 'Complete One more' : 'Complete One'"
