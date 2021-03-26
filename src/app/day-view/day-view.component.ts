@@ -452,8 +452,9 @@ export class DayViewComponent implements OnInit, OnDestroy {
   }
 
   shouldDisplayProgress(session: Session) {
-    return session.effectiveProgress !== undefined || session.effectiveCost !==
-      undefined
+    return (session.effectiveProgress !== undefined &&
+      session.effectiveProgress !== 0) ||
+      (session.effectiveCost !== undefined && session.effectiveCost !== 0)
   }
 
   getProgressHtml(session: Session) {
