@@ -36,7 +36,9 @@
     </mat-menu>
   </div>
   <div class="progress-bar">
-    <div class="progress-bar-filled" [style.width]="progress * 100 + '%'"></div>
+    <div class="progress-bar-filled"
+         [style.width]="progress * 100 + '%'"
+         [class.progress-bar-overfilled]="progressOverfilled"></div>
     <div class="progress-bar-done-filled"
          [style.width]="progressDone * 100 + '%'"></div>
   </div>

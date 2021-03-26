@@ -433,6 +433,13 @@ export class DayViewComponent implements OnInit, OnDestroy {
     return Math.min(Math.max(this.doneCount / this.quota, 0), 1)
   }
 
+  get progressOverfilled() {
+    if (this.dayID < this.dataStore.getCurrentDayID() || this.quota <= 0) {
+      return 0
+    }
+    return this.totalCount > this.quota
+  }
+
   editQuota() {
     const dialogRef = this.dialog.open(QuickQuotaEditComponent, {
       width: QuickQuotaEditComponent.DIALOG_WIDTH,

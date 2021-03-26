@@ -367,6 +367,14 @@ export class MonthDayViewComponent implements OnInit {
     return Math.min(Math.max(this.totalCount / this.quota, 0), 1)
   }
 
+  get progressOverfilled() {
+    if (this.dayID < this.dataStore.getCurrentDayID() || this.quota ===
+      undefined || this.quota <= 0) {
+      return 0
+    }
+    return this.totalCount > this.quota
+  }
+
   get progressDone() {
     if (this.dayID < this.dataStore.getCurrentDayID() || this.quota ===
       undefined || this.quota <= 0) {
