@@ -221,8 +221,8 @@ export class GreedyProjectionStrategy extends ProjectionStrategy {
         auxInfo.plannedCount < info.unplannedCost) {
         impossibleTasks.push(info.task)
         // Add the unplanned sessions
-        const sessionsOfDay = getOrCreate(
-          sessions, info.task.end, sessionOfDayCreator)
+        const d = Math.max(info.task.end, firstDayID)
+        const sessionsOfDay = getOrCreate(sessions, d, sessionOfDayCreator)
         const amountLeft = (info.unplannedCost - auxInfo.plannedCount)
         sessionsOfDay.set(
           info.itemID, (sessionsOfDay.get(info.itemID) || 0) + amountLeft)
