@@ -16,6 +16,7 @@ export class SettingsDialogComponent implements OnInit {
   static readonly DIALOG_WIDTH = '600px'
 
   dataDir: string
+  increasePostponementEffort: boolean
 
   constructor(public dialogRef: MatDialogRef<SettingsDialogComponent>,
               private readonly metadataStore: MetadataStore,
@@ -23,6 +24,7 @@ export class SettingsDialogComponent implements OnInit {
               private readonly fsUtil: FsUtil,
               @Inject(MAT_DIALOG_DATA) public data: SettingsDialogConfig) {
     this.dataDir = metadataStore.dataDir
+    this.increasePostponementEffort = metadataStore.increasePostponementEffort
   }
 
   ngOnInit(): void {
@@ -34,6 +36,8 @@ export class SettingsDialogComponent implements OnInit {
 
   save() {
     this.metadataStore.dataDir = this.dataDir
+    this.metadataStore.increasePostponementEffort =
+      this.increasePostponementEffort
     this.metadataStore.save()
     this.close()
   }

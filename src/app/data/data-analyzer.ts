@@ -32,6 +32,9 @@ import {
 
 const ANALYZER_UPDATE_DELAY = 500
 
+const MIN_QUOTA_PERIOD = 7
+const MAX_QUOTA_PERIOD = 30
+
 const EMPTY_LIST_CREATOR = (): any[] => []
 
 export interface Task {
@@ -239,6 +242,7 @@ export enum AnalyzerProjectionStrategy {
 }
 
 export class FreeTimeInfo {
+  quotaPeriod = 1
   totalQuota = 0
   freeQuota = 0
   lastWeekDailyCompletion = 0
@@ -247,6 +251,7 @@ export class FreeTimeInfo {
   }
 
   clear() {
+    this.quotaPeriod = 1
     this.totalQuota = 0
     this.freeQuota = 0
     this.lastWeekDailyCompletion = 0
@@ -1034,6 +1039,10 @@ export class DataAnalyzer {
     return result
   }
 
+  /**
+   * Cache the unused quota of each day. All types of sessions (except
+   * projection) count as using the quota.
+   */
   private cacheSessionSlots(quotaInfo: Map<DayID, number>,
                             currentDate: DayID,
                             maxProjectionEndDate: DayID) {
@@ -1061,11 +1070,22 @@ export class DataAnalyzer {
                               result: FreeTimeInfo) {
     const rangeStart = currentDate
     // TODO change the hard-coded 30 days
-    const rangeEnd = Math.min(rangeStart + 29, maxProjectionEndDate)
+    const rangeEnd = Math.min(
+      rangeStart + MAX_QUOTA_PERIOD - 1, maxProjectionEndDate)
+    let bestRatio = -1
+    let totalQuota = 0
+    let freeQuota = 0
+    let totalQuotaExcludingFirst = 0
+    let freeQuotaExcludingFirst = 0
+    let bestTotalQuota = 0
+    let bestFreeQuota = 0
     for (let d = rangeStart; d <= rangeEnd; ++d) {
       const quota = (quotaInfo.get(d) || 0)
       let usedQuota = 0
-      result.totalQuota += quota
+      totalQuota += quota
+      if (d > rangeStart) {
+        totalQuotaExcludingFirst += quota
+      }
       usedQuota += quota - (sessionSlots.get(d) || 0)
       const sessionsOfDay = projectedSessions.get(d)
       if (sessionsOfDay !== undefined) {
@@ -1073,8 +1093,23 @@ export class DataAnalyzer {
           usedQuota += count
         })
       }
-      result.freeQuota += Math.max(0, quota - usedQuota)
+      freeQuota += Math.max(0, quota - usedQuota)
+      if (d > rangeStart) {
+        freeQuotaExcludingFirst += Math.max(0, quota - usedQuota)
+      }
+
+      const ratio = totalQuotaExcludingFirst === 0 ? 0 :
+        (freeQuotaExcludingFirst / totalQuotaExcludingFirst)
+      if (d - rangeStart + 1 >= MIN_QUOTA_PERIOD &&
+        (bestRatio < 0 || ratio < bestRatio)) {
+        bestRatio = ratio
+        bestTotalQuota = totalQuota
+        bestFreeQuota = freeQuota
+        result.quotaPeriod = d - rangeStart + 1
+      }
     }
+    result.totalQuota = bestTotalQuota
+    result.freeQuota = bestFreeQuota
 
     // TODO change the hard-coded 7 days
     const pastDays = 7

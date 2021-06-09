@@ -255,4 +255,8 @@ export class TimelineComponent implements OnInit, OnDestroy {
     if (info.totalQuota === 0) return 0
     return clamp(info.freeQuota / info.totalQuota, 0, 1)
   }
+
+  getFreeTimeQuotaPeriod() {
+    return this.dataAnalyzer.getFreeTimeInfo().quotaPeriod
+  }
 }

@@ -37,7 +37,9 @@
   </div>
   <mat-divider class="divider"></mat-divider>
   <div class="toolbar">
-    <p class="free-time-label">Max free time in 30 days:</p>
+    <p class="free-time-label">
+      Max free time in {{getFreeTimeQuotaPeriod()}} days:
+    </p>
     <p class="free-time-text app-single-line-text"
        [class.warning]="freeTimeDepleted"
        [innerHTML]="getFreeTimeHtml()"></p>

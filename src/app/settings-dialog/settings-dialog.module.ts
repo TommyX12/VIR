@@ -6,6 +6,7 @@ import {MatButtonModule} from '@angular/material/button'
 import {MatFormFieldModule} from '@angular/material/form-field'
 import {FormsModule} from '@angular/forms'
 import {MatInputModule} from '@angular/material/input'
+import {MatSlideToggleModule} from '@angular/material/slide-toggle'
 
 
 @NgModule({
@@ -14,6 +15,7 @@ import {MatInputModule} from '@angular/material/input'
     CommonModule,
     MatIconModule,
     MatButtonModule,
+    MatSlideToggleModule,
     MatFormFieldModule,
     FormsModule,
     MatInputModule,

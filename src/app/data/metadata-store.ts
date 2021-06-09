@@ -10,6 +10,7 @@ const TEMP_METADATA_FILE_NAME_2 = 'vir-metadata.tmp2.json'
 export class MetadataStore {
   dataDir: string
   saveFilePath: string
+  increasePostponementEffort: boolean
 
   constructor(
     private readonly fsUtil: FsUtil,
@@ -20,6 +21,7 @@ export class MetadataStore {
     this.dataDir = DEFAULT_DATA_DIR
 
     this.saveFilePath = METADATA_PATH
+    this.increasePostponementEffort = false
 
     this.load()
     this.save()
@@ -33,6 +35,7 @@ export class MetadataStore {
     const filePath = this.getSaveFilePath()
     const text = stableStringify({
       dataDir: this.dataDir,
+      increasePostponementEffort: this.increasePostponementEffort,
     })
     this.fsUtil.safeWriteFileSync(
       filePath, text, TEMP_METADATA_FILE_NAME_1, TEMP_METADATA_FILE_NAME_2)
@@ -48,6 +51,7 @@ export class MetadataStore {
       if (text === undefined) return false
       const data = JSON.parse(text)
       this.dataDir = data.dataDir
+      this.increasePostponementEffort = !!data.increasePostponementEffort
     } catch (e) {
       console.log(e)
       return false

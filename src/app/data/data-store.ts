@@ -1339,11 +1339,10 @@ export class DataStore {
    * Returns whether the item repeated.
    */
   public updateItem(itemDraft: ItemDraft, options: UpdateItemOptions = {},
-                    skipValidation: boolean = false) {
+                    skipValidation: boolean = false, skipEffortCheck = false) {
     if (!skipValidation) {
       this.validateItemDraft(itemDraft, false)
     }
-    this.pushUndo()
     let repeated = false
     const itemID = itemDraft.id
     const item = this.getItem(itemID)
@@ -1360,6 +1359,32 @@ export class DataStore {
       itemDraft.repeat !== undefined &&
       !this.getHasAncestorRepeat(item)
     )
+    /*
+    const oldDueDate = item.dueDate
+    const newDueDate = itemDraft.dueDate
+    if (!skipEffortCheck && this.metadataStore.increasePostponementEffort &&
+      oldDueDate !== undefined &&
+      (newDueDate === undefined || newDueDate > oldDueDate)) {
+      var str = ''
+      for (var i = 0; i < 20; ++i) {
+        str += Math.floor(Math.random() * 10).toString(10)
+      }
+      this.simplePrompt(
+        'You are postponing a due date. Please enter the following text to proceed: ' +
+        str).then(input => {
+        if (input === str) {
+          this.updateItem(itemDraft, options, skipValidation, skipEffortCheck)
+        } else {
+          alert('Error: wrong input.')
+        }
+      }).catch(err => {
+        alert(err)
+        console.log(err)
+      })
+      return
+    }
+    */
+    this.pushUndo()
     this._state = produce(
       this._state,
       draft => {
@@ -1416,6 +1441,10 @@ export class DataStore {
     this.notify()
 
     return repeated
+  }
+
+  private simplePrompt(prompt: string) {
+    // TODO
   }
 
   public removeItem(itemID: ItemID) {
