@@ -41,9 +41,9 @@
     "lint": "ng lint"
   },
   "dependencies": {
-    "@angular/animations": "^11.0.0 || ^12.0.0-0",
+    "@angular/animations": "11.0.2",
     "@angular/cdk": "11.0.1",
-    "@angular/forms": "^11.0.0 || ^12.0.0-0",
+    "@angular/forms": "11.0.2",
     "@angular/material": "11.0.1",
     "angular-material-dynamic-themes": "1.0.4",
     "color": "3.1.3",
