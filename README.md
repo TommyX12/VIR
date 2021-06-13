@@ -20,7 +20,7 @@ so you'll never have to worry about unrealistic deadlines or todo-list overload.
 VIR is built
 with [angular-electron](https://github.com/maximegris/angular-electron).
 
-### Release Build
+### Building the Binary
 
 1. Clone the repository:
    ```bash
@@ -31,7 +31,7 @@ with [angular-electron](https://github.com/maximegris/angular-electron).
    cd VIR
    npm install
    ```
-3. To build for production:
+3. Build the binary:
    ```bash
    npm run electron:build
    ```
