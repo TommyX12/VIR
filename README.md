@@ -47,4 +47,6 @@ npm start
 
 ## Wiki
 
-[Coming soon.](https://github.com/TommyX12/VIR/wiki)
+See the project [wiki](https://github.com/TommyX12/VIR/wiki). Check out
+the [Basics](https://github.com/TommyX12/VIR/wiki/Basics) guide for an
+introduction.
