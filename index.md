@@ -1,3 +1,13 @@
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4JKRS69XHW"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-4JKRS69XHW');
+</script>
+
 ![travis badge](https://travis-ci.com/TommyX12/VIR.svg?branch=master)
 
 **VIR** is an open-source intelligent time-management tool designed to tame the
