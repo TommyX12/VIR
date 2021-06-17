@@ -1,37 +1,18 @@
-## Welcome to GitHub Pages
+![travis badge](https://travis-ci.com/TommyX12/VIR.svg?branch=master)
 
-You can use the [editor on GitHub](https://github.com/TommyX12/VIR/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+**VIR** is an open-source intelligent time-management tool designed to tame the
+stress. By simply listing your tasks and schedules, VIR can automatically
+generate plans around your available time, and alert you of potential conflicts,
+so you'll never have to worry about unrealistic deadlines or todo-list overload.
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+***
 
-### Markdown
+![timeline screenshot](https://raw.githubusercontent.com/TommyX12/VIR/master/screenshots/timeline.png)
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+![items screenshot](https://raw.githubusercontent.com/TommyX12/VIR/master/screenshots/items.png)
 
-```markdown
-Syntax highlighted code block
+***
 
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/TommyX12/VIR/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+See the project [wiki](https://github.com/TommyX12/VIR/wiki). Check out
+the [Basics](https://github.com/TommyX12/VIR/wiki/Basics) guide for an
+introduction.
