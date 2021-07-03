@@ -1,0 +1,41 @@
+name: Release/Linux, Windows, Mac
+
+on: push
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: "Install Node.js, NPM and Yarn"
+        uses: actions/setup-node@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          node-version: 14
+
+      - name: Install dependencies & Build release
+        run: |
+          npm i
+          npm run electron:build        
+
+      - name: Created files
+        run: ls -l ./release
+
+      - name: Upload release
+        uses: xresloader/upload-to-github-release@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "release/*.exe;LICENSE.md;release/*.deb;release/*.AppImage;release/*.dmg"
+          delete_file: "*.exe;*.dmg;*.exe;*.AppImage"
+          tag_name: continuous_releases
+          overwrite: true
+          verbose: true
+          draft: false

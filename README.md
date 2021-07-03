@@ -19,8 +19,9 @@ so you'll never have to worry about unrealistic deadlines or todo-list overload.
 
 VIR is built
 with [angular-electron](https://github.com/maximegris/angular-electron). Windows, MacOS, and Linux are all supported.
+Grab your binary from the [releases section](https://github.com/TommyX12/VIR/releases).
 
-### Building the Binary
+### Building the Binary Yourself
 
 1. Clone the repository:
    ```bash
