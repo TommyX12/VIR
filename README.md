@@ -36,6 +36,7 @@ with [angular-electron](https://github.com/maximegris/angular-electron).
    npm run electron:build
    ```
    The built binary will be in `./release`.
+   - **Mac**: Go to `./release`, and open the `.dmg` file.
 
 ### Development Build
 
