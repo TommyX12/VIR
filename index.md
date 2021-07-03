@@ -15,18 +15,14 @@ stress. By simply listing your tasks and schedules, VIR can automatically
 generate plans around your available time, and alert you of potential conflicts,
 so you'll never have to worry about unrealistic deadlines or todo-list overload.
 
-Windows, MacOS, and Linux are all supported.
+Windows, MacOS, and Linux are all supported. [Download here.](https://github.com/TommyX12/VIR/releases)
 
-[Get started here.](https://github.com/TommyX12/VIR/wiki)
+See the project [wiki](https://github.com/TommyX12/VIR/wiki). Check out
+the [Basics](https://github.com/TommyX12/VIR/wiki/Basics) guide for an
+introduction.
 
 ***
 
 ![timeline screenshot](https://raw.githubusercontent.com/TommyX12/VIR/master/screenshots/timeline.png)
 
 ![items screenshot](https://raw.githubusercontent.com/TommyX12/VIR/master/screenshots/items.png)
-
-***
-
-See the project [wiki](https://github.com/TommyX12/VIR/wiki). Check out
-the [Basics](https://github.com/TommyX12/VIR/wiki/Basics) guide for an
-introduction.
