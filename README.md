@@ -37,6 +37,7 @@ with [angular-electron](https://github.com/maximegris/angular-electron).
    ```
    The built binary will be in `./release`.
    - **Mac**: Go to `./release`, and open the `.dmg` file.
+   - **Windows**: Go to `./release`, and open the `.exe` file.
 
 ### Development Build
 
