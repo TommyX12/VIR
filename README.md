@@ -18,7 +18,7 @@ so you'll never have to worry about unrealistic deadlines or todo-list overload.
 ## Getting Started
 
 VIR is built
-with [angular-electron](https://github.com/maximegris/angular-electron).
+with [angular-electron](https://github.com/maximegris/angular-electron). Windows, MacOS, and Linux are all supported.
 
 ### Building the Binary
 
