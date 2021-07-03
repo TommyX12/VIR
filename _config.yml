@@ -1,6 +1,9 @@
 theme: jekyll-theme-midnight
 title: VIR
 description: An intelligent time manager
+show_downloads: true
+github:
+  zip_url: https://github.com/TommyX12/VIR/releases
 plugins:
   - jekyll-seo-tag
   - jekyll-sitemap
