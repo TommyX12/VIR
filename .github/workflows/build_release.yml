@@ -34,7 +34,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           file: "release/*.exe;LICENSE.md;release/*.deb;release/*.AppImage;release/*.dmg"
-          delete_file: "*.exe;*.dmg;*.exe;*.AppImage"
           tag_name: continuous_releases
           overwrite: true
           verbose: true
