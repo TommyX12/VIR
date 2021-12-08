@@ -30,7 +30,7 @@ Grab your binary from the [releases section](https://github.com/TommyX12/VIR/rel
 2. Enter the directory and install dependencies:
    ```bash
    cd VIR
-   npm install
+   npm install --legacy-peer-deps
    ```
 3. Build the binary:
    ```bash
