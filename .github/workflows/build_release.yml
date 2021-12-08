@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies & Build release
         run: |
-          npm i
+          npm i --legacy-peer-deps
           npm run electron:build        
 
       - name: Created files
